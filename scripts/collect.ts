@@ -20,6 +20,10 @@ const guestRepo = "voicevox/voicevox";
 const commentMarker = "<!-- deploy -->";
 // ダウンロードしたファイルを展開するディレクトリ
 const destinationDir = `${import.meta.dirname}/../public/preview`;
+// ビルドチェックの名前
+const pagesBuildCheckName = "update_preview";
+// ダウンロードするアーティファクトの名前
+const artifactName = "preview-page";
 
 await logtape.configure({
   sinks: {
@@ -138,7 +142,7 @@ const downloadTargets = await Promise.all(
           },
         );
         const buildPageCheck = checkRuns.find(
-          (checkRun) => checkRun.name === "update_pages",
+          (checkRun) => checkRun.name === pagesBuildCheckName,
         );
         if (!buildPageCheck) {
           log.info("No build check found");
@@ -191,7 +195,7 @@ const downloadTargets = await Promise.all(
           },
         );
         const artifact = buildPage.data.artifacts.find(
-          (artifact) => artifact.name === "page-dist",
+          (artifact) => artifact.name === artifactName,
         );
         if (!artifact) {
           log.error("No artifact found");
