@@ -23,7 +23,7 @@ const destinationDir = `${import.meta.dirname}/../public/preview`;
 // ビルドチェックの名前
 const pagesBuildCheckName = "update_preview";
 // ダウンロードするアーティファクトの名前
-const artifactName = "preview-page";
+const artifactName = "preview-pages";
 // PagesのURL
 const pagesUrl = "https://voicevox.github.io/preview-pages";
 
