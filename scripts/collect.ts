@@ -65,7 +65,7 @@ const getEnv = (name: string) => {
 
 const app = new App({
   appId: Number.parseInt(getEnv("APP_ID")),
-  privateKey: await fs.readFile(
+  privateKey: process.env.PRIVATE_PEM || await fs.readFile(
     `${import.meta.dirname}/../private-key.pem`,
     "utf8",
   ),
