@@ -266,14 +266,14 @@ const downloadTargets = await Promise.all(
             `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${source.pullRequest.head.repo.full_name
             }/commit/${source.pullRequest.head.sha})`,
           ].join("\n");
-          const maybeDeployInfo = comments.find(
+          const maybePreviousDeployInfo = comments.find(
             (comment) =>
               comment.user &&
               appInfo.data &&
               comment.user.login === `${appInfo.data.slug}[bot]` &&
               comment.body?.startsWith(commentMarker),
           );
-          if (!maybeDeployInfo) {
+          if (!maybePreviousDeployInfo) {
             log.info("Adding deploy info...");
             await octokit.request(
               "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
@@ -291,7 +291,7 @@ const downloadTargets = await Promise.all(
               {
                 owner: guestRepoOwner,
                 repo: guestRepoName,
-                comment_id: maybeDeployInfo.id,
+                comment_id: maybePreviousDeployInfo.id,
                 body: deployInfoMessage,
               },
             );
