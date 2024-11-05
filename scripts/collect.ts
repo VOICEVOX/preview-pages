@@ -1,10 +1,10 @@
 import fs from "node:fs/promises";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { App, Octokit } from "octokit";
-import { config } from "dotenv";
-import { paginateRest } from "@octokit/plugin-paginate-rest";
-import { Semaphore } from "@core/asyncutil";
+import {Readable} from "node:stream";
+import {pipeline} from "node:stream/promises";
+import {App, Octokit} from "octokit";
+import {config} from "dotenv";
+import {paginateRest} from "@octokit/plugin-paginate-rest";
+import {Semaphore} from "@core/asyncutil";
 import * as logtape from "@logtape/logtape";
 import unzip from "unzip-stream";
 
@@ -82,7 +82,7 @@ if (!appInfo.data) {
 }
 rootLogger.info`Running as ${appInfo.data.name}.`;
 
-const { data: installations } = await app.octokit.request(
+const {data: installations} = await app.octokit.request(
   "GET /app/installations",
 );
 const installationId = installations[0].id;
@@ -131,7 +131,7 @@ const downloadTargets = await Promise.all(
       try {
         log.info("Checking...");
         const {
-          data: { check_runs: checkRuns },
+          data: {check_runs: checkRuns},
         } = await octokit.request(
           "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
           {
@@ -165,7 +165,7 @@ const downloadTargets = await Promise.all(
         const jobId = buildPageCheck.id;
         while (true) {
           const done = await semaphore.lock(async () => {
-            const { data: job } = await octokit.request(
+            const {data: job} = await octokit.request(
               "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
               {
                 owner: guestRepoOwner,
@@ -211,7 +211,7 @@ const downloadTargets = await Promise.all(
         }
         log.info`Fetching artifact URL from ${downloadUrl}`;
 
-        const { url: innerDownloadUrl } = await octokit.request(
+        const {url: innerDownloadUrl} = await octokit.request(
           "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
           {
             owner: guestRepoOwner,
@@ -237,7 +237,7 @@ const downloadTargets = await Promise.all(
             : `pr-${source.pullRequest.number}`;
         const destination = `${destinationDir}/${dirname}`;
         log.info`Extracting artifact to ${destination}`;
-        await fs.mkdir(destination, { recursive: true });
+        await fs.mkdir(destination, {recursive: true});
         await pipeline(
           Readable.fromWeb(response.body),
           unzip.Extract({
@@ -258,11 +258,12 @@ const downloadTargets = await Promise.all(
           );
           const deployInfoMessage = [
             commentMarker,
-            "プレビュー：",
-            `- エディタ：<${pagesUrl}/vv-preview-demo-bot/${dirname}/editor>`,
-            `- Storybook：<${pagesUrl}/vv-preview-demo-bot/${dirname}/storybook>`,
-            `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
-              source.pullRequest.head.repo.full_name
+            ":rocket: プレビュー用ページを作成しました :rocket:",
+            "",
+            `- [:pencil: エディタ](${pagesUrl}/vv-preview-demo-bot/${dirname}/editor)`,
+            `- [:book: Storybook](${pagesUrl}/vv-preview-demo-bot/${dirname}/storybook)`,
+            "",
+            `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${source.pullRequest.head.repo.full_name
             }/commit/${source.pullRequest.head.sha})`,
           ].join("\n");
           const maybeDeployInfo = comments.find(
@@ -297,7 +298,7 @@ const downloadTargets = await Promise.all(
           }
         }
 
-        return { source, dirname };
+        return {source, dirname};
       } catch (e) {
         log.error`Failed to process: ${e}`;
       }
