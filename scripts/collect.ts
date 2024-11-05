@@ -15,7 +15,7 @@ config({
 // 設定
 
 // 収集対象のリポジトリ
-const guestRepo = "sevenc-nanashi/vv-preview-demo-page";
+const guestRepo = "voicevox/voicevox";
 // デプロイ情報を書き込むコメントの最初に付けるマーカー
 const commentMarker = "<!-- deploy -->";
 // ダウンロードしたファイルを展開するディレクトリ
