@@ -24,6 +24,8 @@ const destinationDir = `${import.meta.dirname}/../public/preview`;
 const pagesBuildCheckName = "update_preview";
 // ダウンロードするアーティファクトの名前
 const artifactName = "preview-page";
+// PagesのURL
+const pagesUrl = "https://voicevox.github.io/preview-pages";
 
 await logtape.configure({
   sinks: {
@@ -257,8 +259,8 @@ const downloadTargets = await Promise.all(
           const deployInfoMessage = [
             commentMarker,
             "プレビュー：",
-            `- エディタ：<https://sevenc7c.com/vv-preview-demo-bot/${dirname}/editor>`,
-            `- Storybook：<https://sevenc7c.com/vv-preview-demo-bot/${dirname}/storybook>`,
+            `- エディタ：<${pagesUrl}/vv-preview-demo-bot/${dirname}/editor>`,
+            `- Storybook：<${pagesUrl}/vv-preview-demo-bot/${dirname}/storybook>`,
             `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
               source.pullRequest.head.repo.full_name
             }/commit/${source.pullRequest.head.sha})`,
