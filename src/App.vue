@@ -1,5 +1,5 @@
 <template>
-  <header class="header">Voicevox Preview</header>
+  <header class="header">VOICEVOX Preview Pages</header>
   <main class="main">
     <p>プレビューするBranchまたはPull Requestを選択してください。</p>
     <section class="downloads">
