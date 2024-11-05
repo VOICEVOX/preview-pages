@@ -256,7 +256,9 @@ const downloadTargets = await Promise.all(
           );
           const deployInfoMessage = [
             commentMarker,
-            `プレビュー：<https://sevenc7c.com/vv-preview-demo-bot/${dirname}/>`,
+            "プレビュー：",
+            `- エディタ：<https://sevenc7c.com/vv-preview-demo-bot/${dirname}/editor>`,
+            `- Storybook：<https://sevenc7c.com/vv-preview-demo-bot/${dirname}/storybook>`,
             `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
               source.pullRequest.head.repo.full_name
             }/commit/${source.pullRequest.head.sha})`,
