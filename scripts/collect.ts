@@ -17,7 +17,7 @@ config({
 // 収集対象のリポジトリ
 const guestRepo = "voicevox/voicevox";
 // デプロイ情報を書き込むコメントの最初に付けるマーカー
-const commentMarker = "<!-- voiccevox preview info -->";
+const commentMarker = "<!-- voiccevox preview-pages info -->";
 // ダウンロードしたファイルを展開するディレクトリ
 const destinationDir = `${import.meta.dirname}/../public/preview`;
 // ビルドチェックの名前
