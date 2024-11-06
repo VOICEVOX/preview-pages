@@ -30,7 +30,7 @@
               </a>
             </template>
             <template v-if="download.source.type === 'pullRequest'">
-              <ElTag effect="dark" type="success" disableTransitions>PR</ElTag>
+              <ElTag effect="dark" type="success" disableTransitions>Pull Request</ElTag>
               <a
                 class="download-source"
                 :href="download.source.pullRequest.html_url"
