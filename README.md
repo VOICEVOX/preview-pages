@@ -22,6 +22,11 @@ pnpm run dev
 
 1. GitHub の Personal Access Token を取得します。
 2. `.env.example` をコピーして `.env` を作成します。内容はコメントを参照してください。
+3. 以下のコマンドを実行します：
+
+```
+pnpm run run:collect-artifacts
+```
 
 ### 書き込み系の動作を含めて動かす場合
 
