@@ -1,7 +1,6 @@
 import { onMounted } from "vue";
 
 export function useColorScheme() {
-  // color mode
   onMounted(() => {
     const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
     const setTheme = (isDark: boolean) => {
