@@ -11,9 +11,7 @@
         >
           <template #header>
             <template v-if="download.source.type === 'branch'">
-              <ElTag effect="dark" type="primary" disableTransitions
-                >Branch</ElTag
-              >
+              <ElTag type="primary" disableTransitions>Branch</ElTag>
               <a
                 class="download-source"
                 :href="`https://github.com/VOICEVOX/voicevox/tree/${download.source.branch.name}`"
@@ -30,9 +28,7 @@
               </a>
             </template>
             <template v-if="download.source.type === 'pullRequest'">
-              <ElTag effect="dark" type="success" disableTransitions
-                >Pull Request</ElTag
-              >
+              <ElTag type="success" disableTransitions>Pull Request</ElTag>
               <a
                 class="download-source"
                 :href="download.source.pullRequest.html_url"
@@ -72,8 +68,10 @@
 <script setup lang="ts">
 import { ElButton, ElCard, ElLoading, ElTag } from "element-plus";
 import { useDownloadData } from "./composables/useDownloadData.ts";
+import { useColorScheme } from "./composables/useColorScheme.ts";
 
 const downloads = useDownloadData();
+useColorScheme();
 
 const joinUrl = (path: string) =>
   `${import.meta.env.BASE_URL}/preview/${path}`.replace(/\/+/g, "/");
@@ -84,9 +82,16 @@ const joinUrl = (path: string) =>
 
 .header {
   align-content: center;
-  color: main.$theme;
-  background: #2b2b2b;
   padding: 1rem;
+
+  html.light & {
+    color: #000000;
+    background: main.$theme-light;
+  }
+  html.dark & {
+    color: main.$theme-dark;
+    background: #2b2b2b;
+  }
 
   font-size: 1.5rem;
   font-weight: bold;
