@@ -14,6 +14,7 @@ import {
   guestRepoName,
   DownloadData,
 } from "./common.ts";
+import { RequestError } from "octokit";
 
 const { values: args } = parseArgs({
   options: {
@@ -165,15 +166,26 @@ const downloadTargets = await Promise.all(
         }
         log.info`Fetching artifact URL from ${downloadUrl}`;
 
-        const { url: innerDownloadUrl } = await octokit.request(
-          "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
-          {
-            owner: guestRepoOwner,
-            repo: guestRepoName,
-            artifact_id: artifact.id,
-            archive_format: "zip",
-          },
-        );
+        let innerDownloadUrl: string;
+        try {
+          innerDownloadUrl = await octokit
+            .request(
+              "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
+              {
+                owner: guestRepoOwner,
+                repo: guestRepoName,
+                artifact_id: artifact.id,
+                archive_format: "zip",
+              },
+            )
+            .then((response) => response.url);
+        } catch (e) {
+          if (e instanceof RequestError && e.status === 410) {
+            log.error("Artifact is expired");
+            return;
+          }
+          throw e;
+        }
 
         const dirname =
           source.type === "branch"
