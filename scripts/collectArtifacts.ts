@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { parseArgs } from "node:util";
 import { Semaphore } from "@core/asyncutil";
+import { RequestError } from "octokit";
 import unzip from "unzip-stream";
 import {
   pagesBuildCheckName,
@@ -14,7 +15,6 @@ import {
   guestRepoName,
   DownloadData,
 } from "./common.ts";
-import { RequestError } from "octokit";
 
 const { values: args } = parseArgs({
   options: {
