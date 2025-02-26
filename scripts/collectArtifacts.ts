@@ -239,7 +239,7 @@ const collectArtifacts = async (
   return {
     repoKey,
     data: successfulDownloads,
-    allTargets: downloadTargets.length,
+    numTargets: downloadTargets.length,
   };
 };
 
@@ -254,10 +254,10 @@ for (const [rawRepoKey, repo] of Object.entries(guestRepos)) {
   successfulDownloads.push({
     repoKey: repoKey,
     data: downloads.data,
-    allTargets: downloads.allTargets,
+    numTargets: downloads.numTargets,
   });
   totalSuccessfulDownloads += downloads.data.length;
-  totalTargets += downloads.allTargets;
+  totalTargets += downloads.numTargets;
 }
 
 if (successfulDownloads.length === 0) {
@@ -269,7 +269,7 @@ await fs.writeFile(
   JSON.stringify(successfulDownloads, null, 2),
 );
 rootLogger.info`Done:`;
-for (const { repoKey, data, allTargets } of successfulDownloads) {
-  rootLogger.info`${repoKey}: ${data.length} successful downloads / ${allTargets} targets`;
+for (const { repoKey, data, numTargets } of successfulDownloads) {
+  rootLogger.info`${repoKey}: ${data.length} successful downloads / ${numTargets} targets`;
 }
 rootLogger.info`Total: ${totalSuccessfulDownloads} successful downloads / ${totalTargets} targets`;
