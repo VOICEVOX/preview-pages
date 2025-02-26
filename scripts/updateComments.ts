@@ -9,19 +9,19 @@ import {
   destinationDir,
   DownloadResult,
 } from "./common.ts";
-import { guestRepos } from "./constants.ts";
+import { GuestRepoKey, guestRepos } from "./constants.ts";
 
 const appInfo = getAppInfo();
 
 const downloadResults = JSON.parse(
   await fs.readFile(`${destinationDir}/downloads.json`, "utf-8"),
-) as DownloadResult[];
+) as Record<GuestRepoKey, DownloadResult>;
 
 let allPullRequests = 0;
 let newComments = 0;
 let updatedComments = 0;
 
-for (const { repoKey, data } of downloadResults) {
+for (const { repoKey, data } of Object.values(downloadResults)) {
   const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].repo.split("/");
   for (const { path, source } of data) {
     if (source.type === "branch") {

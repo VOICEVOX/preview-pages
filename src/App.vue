@@ -22,9 +22,12 @@
       </ElButtonGroup>
     </section>
     <section class="downloads">
-      <template v-if="currentDownloads">
+      <template v-if="downloads.loading">
+        <ElLoading />
+      </template>
+      <template v-else>
         <ElCard
-          v-for="download in currentDownloads.data"
+          v-for="download in downloads.result[currentRepo].data"
           :key="download.path"
           class="download-card"
         >
@@ -80,9 +83,6 @@
           >
         </ElCard>
       </template>
-      <template v-else>
-        <ElLoading />
-      </template>
     </section>
   </main>
 </template>
@@ -95,7 +95,7 @@ import {
   ElLoading,
   ElTag,
 } from "element-plus";
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { GuestRepoKey } from "../scripts/common.ts";
 import { guestRepos } from "../scripts/constants.ts";
 import { useDownloadData } from "./composables/useDownloadData.ts";
@@ -119,19 +119,6 @@ watch(currentRepo, (newVal) => {
   const search = new URLSearchParams(location.search);
   search.set("repo", newVal);
   history.replaceState(null, "", `${location.pathname}?${search.toString()}`);
-});
-
-const currentDownloads = computed(() => {
-  if (downloads.value.loading) return null;
-  const result = downloads.value.result.find(
-    (data) => data.repoKey === currentRepo.value,
-  );
-  if (!result) {
-    throw new Error(
-      `Unreachable: downloads.value does not have ${currentRepo.value}`,
-    );
-  }
-  return result;
 });
 
 const joinUrl = (path: string) =>

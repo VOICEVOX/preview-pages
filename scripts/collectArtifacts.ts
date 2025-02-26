@@ -246,24 +246,20 @@ const collectArtifacts = async (
   };
 };
 
-const successfulDownloads: DownloadResult[] = [];
+const successfulDownloads: Record<string, DownloadResult> = {};
 
 let totalSuccessfulDownloads = 0;
 let totalTargets = 0;
 for (const [rawRepoKey, repo] of Object.entries(guestRepos)) {
   const repoKey = rawRepoKey as GuestRepoKey;
-  rootLogger.info`Collecting artifacts for ${repo}...`;
+  rootLogger.info`Collecting artifacts for ${repo.repo}...`;
   const downloads = await collectArtifacts(repoKey);
-  successfulDownloads.push({
-    repoKey: repoKey,
-    data: downloads.data,
-    numTargets: downloads.numTargets,
-  });
+  successfulDownloads[repoKey] = downloads;
   totalSuccessfulDownloads += downloads.data.length;
   totalTargets += downloads.numTargets;
 }
 
-if (successfulDownloads.length === 0) {
+if (totalSuccessfulDownloads === 0) {
   rootLogger.error("No artifacts were collected.");
   process.exit(1);
 }
@@ -272,7 +268,9 @@ await fs.writeFile(
   JSON.stringify(successfulDownloads, null, 2),
 );
 rootLogger.info`Done:`;
-for (const { repoKey, data, numTargets } of successfulDownloads) {
+for (const { repoKey, data, numTargets } of Object.values(
+  successfulDownloads,
+)) {
   rootLogger.info`${repoKey}: ${data.length} successful downloads / ${numTargets} targets`;
 }
 rootLogger.info`Total: ${totalSuccessfulDownloads} successful downloads / ${totalTargets} targets`;
