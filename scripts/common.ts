@@ -25,7 +25,7 @@ export type DownloadData = {
 export type DownloadResult = {
   repoKey: GuestRepoKey;
   data: DownloadData[];
-  allTargets: number;
+  numTargets: number;
 };
 
 config({
