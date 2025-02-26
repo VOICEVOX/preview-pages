@@ -103,9 +103,16 @@ const switchRepo = (repo: GuestRepoKey) => {
 };
 
 const currentDownloads = computed(() => {
-  return downloads.value?.find(
-    (download) => download.repoKey === currentRepo.value,
+  if (downloads.value.loading) return null;
+  const result = downloads.value.result.find(
+    (data) => data.repoKey === currentRepo.value,
   );
+  if (!result) {
+    throw new Error(
+      `Unreachable: downloads.value does not have ${currentRepo.value}`,
+    );
+  }
+  return result;
 });
 
 const joinUrl = (path: string) =>
