@@ -227,7 +227,7 @@ const collectArtifacts = async (
           }
           log.info("Done.");
 
-          return { source, dirname: path };
+          return { source, path };
         } catch (e) {
           log.error`Failed to process: ${e}`;
         }

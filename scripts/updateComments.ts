@@ -23,7 +23,7 @@ let updatedComments = 0;
 
 for (const { repoKey, data } of downloadResults) {
   const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].split("/");
-  for (const { dirname, source } of data) {
+  for (const { path, source } of data) {
     if (source.type === "branch") {
       continue;
     }
@@ -41,8 +41,8 @@ for (const { repoKey, data } of downloadResults) {
     const deployInfoMessage = [
       ":rocket: プレビュー用ページを作成しました :rocket:",
       "",
-      `- <a href="${pagesUrl}/preview/${dirname}/editor" target="_blank">:pencil: エディタ</a>`,
-      `- <a href="${pagesUrl}/preview/${dirname}/storybook" target="_blank">:book: Storybook</a>`,
+      `- <a href="${pagesUrl}/preview/${path}/editor" target="_blank">:pencil: エディタ</a>`,
+      `- <a href="${pagesUrl}/preview/${path}/storybook" target="_blank">:book: Storybook</a>`,
       "",
       `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
         source.pullRequest.head.repo.full_name

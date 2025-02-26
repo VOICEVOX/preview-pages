@@ -20,7 +20,7 @@ export type DownloadData = {
         type: "pullRequest";
         pullRequest: PullRequest;
       };
-  dirname: string;
+  path: string;
 };
 export type DownloadResult = {
   repoKey: GuestRepoKey;
