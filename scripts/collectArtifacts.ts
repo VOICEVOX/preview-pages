@@ -14,6 +14,7 @@ import {
   DownloadData,
   guestRepos,
   DownloadResult,
+  GuestRepoKey,
 } from "./common.ts";
 
 const { values: args } = parseArgs({
@@ -37,7 +38,7 @@ if (args.skipDownload) {
 }
 
 const collectArtifacts = async (
-  repoKey: keyof typeof guestRepos,
+  repoKey: GuestRepoKey,
 ): Promise<DownloadResult> => {
   const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].split("/");
   const branches = await octokit.paginate(
@@ -248,7 +249,7 @@ const successfulDownloads: DownloadResult[] = [];
 let totalSuccessfulDownloads = 0;
 let totalTargets = 0;
 for (const [rawRepoKey, repo] of Object.entries(guestRepos)) {
-  const repoKey = rawRepoKey as keyof typeof guestRepos;
+  const repoKey = rawRepoKey as GuestRepoKey;
   rootLogger.info`Collecting artifacts for ${repo}...`;
   const downloads = await collectArtifacts(repoKey);
   successfulDownloads.push({
