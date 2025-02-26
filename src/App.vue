@@ -90,21 +90,21 @@ import {
   ElTag,
 } from "element-plus";
 import { ref, computed } from "vue";
-import { DownloadResult } from "../scripts/common.ts";
+import { GuestRepoKey } from "../scripts/common.ts";
 import { useDownloadData } from "./composables/useDownloadData.ts";
 import { useColorScheme } from "./composables/useColorScheme.ts";
 
 const downloads = useDownloadData();
 useColorScheme();
 
-const currentRepo = ref<DownloadResult["name"]>("editor");
-const switchRepo = (repo: DownloadResult["name"]) => {
+const currentRepo = ref<GuestRepoKey>("editor");
+const switchRepo = (repo: GuestRepoKey) => {
   currentRepo.value = repo;
 };
 
 const currentDownloads = computed(() => {
   return downloads.value?.find(
-    (download) => download.name === currentRepo.value,
+    (download) => download.repoKey === currentRepo.value,
   );
 });
 

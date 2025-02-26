@@ -37,10 +37,9 @@ if (args.skipDownload) {
 }
 
 const collectArtifacts = async (
-  path: keyof typeof guestRepos,
-  repo: string,
+  repoKey: keyof typeof guestRepos,
 ): Promise<DownloadResult> => {
-  const [guestRepoOwner, guestRepoName] = repo.split("/");
+  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].split("/");
   const branches = await octokit.paginate(
     "GET /repos/{owner}/{repo}/branches",
     {
@@ -198,7 +197,7 @@ const collectArtifacts = async (
             throw e;
           }
 
-          const dirname = `${path}/${
+          const path = `${repoKey}/${
             source.type === "branch"
               ? `branch-${source.branch.name}`
               : `pr-${source.pullRequest.number}`
@@ -216,7 +215,7 @@ const collectArtifacts = async (
               log.error("Response has no body");
               return;
             }
-            const destination = `${destinationDir}/${dirname}`;
+            const destination = `${destinationDir}/${path}`;
             log.info`Extracting artifact to ${destination}`;
             await fs.mkdir(destination, { recursive: true });
             await pipeline(
@@ -228,7 +227,7 @@ const collectArtifacts = async (
           }
           log.info("Done.");
 
-          return { source, dirname };
+          return { source, dirname: path };
         } catch (e) {
           log.error`Failed to process: ${e}`;
         }
@@ -238,7 +237,7 @@ const collectArtifacts = async (
     (downloadTarget) => downloadTarget !== undefined,
   );
   return {
-    name: path,
+    repoKey,
     data: successfulDownloads,
     allTargets: downloadTargets.length,
   };
@@ -248,12 +247,12 @@ const successfulDownloads: DownloadResult[] = [];
 
 let totalSuccessfulDownloads = 0;
 let totalTargets = 0;
-for (const [basePath, repo] of Object.entries(guestRepos)) {
-  const path = basePath as keyof typeof guestRepos;
+for (const [rawRepoKey, repo] of Object.entries(guestRepos)) {
+  const repoKey = rawRepoKey as keyof typeof guestRepos;
   rootLogger.info`Collecting artifacts for ${repo}...`;
-  const downloads = await collectArtifacts(path, repo);
+  const downloads = await collectArtifacts(repoKey);
   successfulDownloads.push({
-    name: path,
+    repoKey: repoKey,
     data: downloads.data,
     allTargets: downloads.allTargets,
   });
@@ -270,7 +269,7 @@ await fs.writeFile(
   JSON.stringify(successfulDownloads, null, 2),
 );
 rootLogger.info`Done:`;
-for (const { name, data, allTargets } of successfulDownloads) {
-  rootLogger.info`${name}: ${data.length} successful downloads / ${allTargets} targets`;
+for (const { repoKey, data, allTargets } of successfulDownloads) {
+  rootLogger.info`${repoKey}: ${data.length} successful downloads / ${allTargets} targets`;
 }
 rootLogger.info`Total: ${totalSuccessfulDownloads} successful downloads / ${totalTargets} targets`;

@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import type { DownloadResult } from "../../scripts/common.ts";
 
-const downloadDataRef = ref<DownloadResult[] | null>(null);
+const downloadResultRef = ref<DownloadResult[] | null>(null);
 
 void fetch(
   `${import.meta.env.BASE_URL}/preview/downloads.json`.replace(/\/\//g, "/"),
@@ -10,9 +10,9 @@ void fetch(
     throw new Error(`Failed to fetch downloads.json: ${response.statusText}`);
   }
   const downloadData = (await response.json()) as DownloadResult[];
-  downloadDataRef.value = downloadData;
+  downloadResultRef.value = downloadData;
 });
 
 export function useDownloadData() {
-  return downloadDataRef;
+  return downloadResultRef;
 }

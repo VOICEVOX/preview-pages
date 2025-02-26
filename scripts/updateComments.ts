@@ -21,8 +21,8 @@ let allPullRequests = 0;
 let newComments = 0;
 let updatedComments = 0;
 
-for (const { name, data } of downloadResults) {
-  const [guestRepoOwner, guestRepoName] = guestRepos[name].split("/");
+for (const { repoKey, data } of downloadResults) {
+  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].split("/");
   for (const { dirname, source } of data) {
     if (source.type === "branch") {
       continue;

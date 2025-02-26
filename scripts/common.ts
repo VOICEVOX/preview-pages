@@ -23,7 +23,7 @@ export type DownloadData = {
   dirname: string;
 };
 export type DownloadResult = {
-  name: keyof typeof guestRepos;
+  repoKey: GuestRepoKey;
   data: DownloadData[];
   allTargets: number;
 };
@@ -39,6 +39,7 @@ export const guestRepos = {
   editor: "voicevox/voicevox",
   docs: "voicevox/WIP_docs",
 };
+export type GuestRepoKey = keyof typeof guestRepos;
 // デプロイ情報を書き込むコメントの最初に付けるマーカー
 export const commentMarker = "<!-- voicevox preview-pages info -->";
 // 過去に使われていたマーカーも含めたマーカーの一覧
