@@ -25,7 +25,7 @@
       <template v-if="currentDownloads">
         <ElCard
           v-for="download in currentDownloads.data"
-          :key="download.dirname"
+          :key="download.path"
           class="download-card"
         >
           <template #header>
@@ -73,7 +73,7 @@
             v-for="link in guestRepos[currentRepo].links"
             :key="link.label"
             :type="link.buttonType"
-            :href="joinUrl(`${download.dirname}/${link.path}`)"
+            :href="joinUrl(`${download.path}/${link.path}`)"
             tag="a"
             target="_blank"
             >{{ link.label }}</ElButton
@@ -97,6 +97,7 @@ import {
 } from "element-plus";
 import { ref, computed, onMounted, watch } from "vue";
 import { GuestRepoKey } from "../scripts/common.ts";
+import { guestRepos } from "../scripts/constants.ts";
 import { useDownloadData } from "./composables/useDownloadData.ts";
 import { useColorScheme } from "./composables/useColorScheme.ts";
 
@@ -107,49 +108,6 @@ const currentRepo = ref<GuestRepoKey>("editor");
 const switchRepo = (repo: GuestRepoKey) => {
   currentRepo.value = repo;
 };
-
-const guestRepos: Record<
-  GuestRepoKey,
-  {
-    repo: string;
-    label: string;
-
-    links: {
-      path: string;
-      buttonType: "success" | "danger";
-      label: string;
-    }[];
-  }
-> = {
-  editor: {
-    repo: "VOICEVOX/voicevox",
-    label: "エディタ",
-    links: [
-      {
-        path: "editor/index.html",
-        buttonType: "success",
-        label: "エディタ",
-      },
-      {
-        path: "storybook/index.html",
-        buttonType: "danger",
-        label: "Storybook",
-      },
-    ],
-  },
-  docs: {
-    repo: "VOICEVOX/WIP_docs",
-    label: "ドキュメント",
-    links: [
-      {
-        path: "index.html",
-        buttonType: "success",
-        label: "ドキュメント",
-      },
-    ],
-  },
-};
-
 onMounted(() => {
   const search = new URLSearchParams(location.search);
   const repo = search.get("repo") as GuestRepoKey | null;

@@ -11,11 +11,13 @@ import {
   destinationDir,
   rootLogger,
   octokit,
+} from "./common.ts";
+import {
   DownloadData,
   guestRepos,
   DownloadResult,
   GuestRepoKey,
-} from "./common.ts";
+} from "./constants.ts";
 
 const { values: args } = parseArgs({
   options: {
@@ -40,7 +42,7 @@ if (args.skipDownload) {
 const collectArtifacts = async (
   repoKey: GuestRepoKey,
 ): Promise<DownloadResult> => {
-  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].split("/");
+  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].repo.split("/");
   const branches = await octokit.paginate(
     "GET /repos/{owner}/{repo}/branches",
     {

@@ -5,6 +5,7 @@ import { App, Octokit } from "octokit";
 import { paginateRest } from "@octokit/plugin-paginate-rest";
 import { throttling } from "@octokit/plugin-throttling";
 import { Endpoints, OctokitResponse } from "@octokit/types";
+import { guestRepos } from "./constants.ts";
 
 export type Branch =
   Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
@@ -33,12 +34,6 @@ config({
 });
 
 // 設定
-
-// 収集対象のリポジトリ
-export const guestRepos = {
-  editor: "voicevox/voicevox",
-  docs: "voicevox/WIP_docs",
-};
 export type GuestRepoKey = keyof typeof guestRepos;
 // デプロイ情報を書き込むコメントの最初に付けるマーカー
 export const commentMarker = "<!-- voicevox preview-pages info -->";

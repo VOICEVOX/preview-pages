@@ -8,8 +8,8 @@ import {
   rootLogger,
   destinationDir,
   DownloadResult,
-  guestRepos,
 } from "./common.ts";
+import { guestRepos } from "./constants.ts";
 
 const appInfo = getAppInfo();
 
@@ -22,7 +22,7 @@ let newComments = 0;
 let updatedComments = 0;
 
 for (const { repoKey, data } of downloadResults) {
-  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].split("/");
+  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].repo.split("/");
   for (const { path, source } of data) {
     if (source.type === "branch") {
       continue;
