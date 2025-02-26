@@ -2,10 +2,26 @@
   <header class="header">VOICEVOX Preview Pages</header>
   <main class="main">
     <p>プレビューするBranchまたはPull Requestを選択してください。</p>
+    <section class="selector">
+      <ElButtonGroup>
+        <ElButton
+          :type="currentRepo === 'editor' ? 'primary' : 'default'"
+          @click="switchRepo('editor')"
+        >
+          エディタ（VOICEVOX/voicevox）
+        </ElButton>
+        <ElButton
+          :type="currentRepo === 'docs' ? 'primary' : 'default'"
+          @click="switchRepo('docs')"
+        >
+          ドキュメント（VOICEVOX/WIP_docs）
+        </ElButton>
+      </ElButtonGroup>
+    </section>
     <section class="downloads">
-      <template v-if="downloads">
+      <template v-if="currentDownloads">
         <ElCard
-          v-for="download in downloads"
+          v-for="download in currentDownloads.data"
           :key="download.dirname"
           class="download-card"
         >
@@ -66,12 +82,31 @@
 </template>
 
 <script setup lang="ts">
-import { ElButton, ElCard, ElLoading, ElTag } from "element-plus";
+import {
+  ElButton,
+  ElButtonGroup,
+  ElCard,
+  ElLoading,
+  ElTag,
+} from "element-plus";
+import { ref, computed } from "vue";
+import { DownloadResult } from "../scripts/common.ts";
 import { useDownloadData } from "./composables/useDownloadData.ts";
 import { useColorScheme } from "./composables/useColorScheme.ts";
 
 const downloads = useDownloadData();
 useColorScheme();
+
+const currentRepo = ref<DownloadResult["name"]>("editor");
+const switchRepo = (repo: DownloadResult["name"]) => {
+  currentRepo.value = repo;
+};
+
+const currentDownloads = computed(() => {
+  return downloads.value?.find(
+    (download) => download.name === currentRepo.value,
+  );
+});
 
 const joinUrl = (path: string) =>
   `${import.meta.env.BASE_URL}/preview/${path}`.replace(/\/+/g, "/");
@@ -105,6 +140,11 @@ const joinUrl = (path: string) =>
 
 .download-source {
   padding-left: 0.5rem;
+}
+
+.selector {
+  margin-bottom: 1rem;
+  display: flex;
 }
 
 .downloads {
