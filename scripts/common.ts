@@ -5,6 +5,7 @@ import { App, Octokit } from "octokit";
 import { paginateRest } from "@octokit/plugin-paginate-rest";
 import { throttling } from "@octokit/plugin-throttling";
 import { Endpoints, OctokitResponse } from "@octokit/types";
+import { guestRepos } from "./constants.ts";
 
 export type Branch =
   Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
@@ -20,7 +21,12 @@ export type DownloadData = {
         type: "pullRequest";
         pullRequest: PullRequest;
       };
-  dirname: string;
+  path: string;
+};
+export type DownloadResult = {
+  repoKey: GuestRepoKey;
+  data: DownloadData[];
+  numTargets: number;
 };
 
 config({
@@ -28,9 +34,7 @@ config({
 });
 
 // 設定
-
-// 収集対象のリポジトリ
-export const guestRepo = "voicevox/voicevox";
+export type GuestRepoKey = keyof typeof guestRepos;
 // デプロイ情報を書き込むコメントの最初に付けるマーカー
 export const commentMarker = "<!-- voicevox preview-pages info -->";
 // 過去に使われていたマーカーも含めたマーカーの一覧
@@ -47,8 +51,6 @@ export const pagesBuildCheckName = "build_preview_pages";
 export const artifactName = "preview-pages";
 // PagesのURL
 export const pagesUrl = "https://voicevox.github.io/preview-pages";
-
-export const [guestRepoOwner, guestRepoName] = guestRepo.split("/");
 
 await logtape.configure({
   sinks: {

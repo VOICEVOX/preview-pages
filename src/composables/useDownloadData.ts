@@ -1,7 +1,11 @@
 import { ref } from "vue";
-import type { DownloadData } from "../../scripts/common.ts";
+import type { DownloadResult } from "../../scripts/common.ts";
+import type { GuestRepoKey } from "../../scripts/constants.ts";
 
-const downloadDataRef = ref<DownloadData[] | null>(null);
+const downloadResultRef = ref<
+  | { loading: false; result: Record<GuestRepoKey, DownloadResult> }
+  | { loading: true }
+>({ loading: true });
 
 void fetch(
   `${import.meta.env.BASE_URL}/preview/downloads.json`.replace(/\/\//g, "/"),
@@ -9,10 +13,13 @@ void fetch(
   if (!response.ok) {
     throw new Error(`Failed to fetch downloads.json: ${response.statusText}`);
   }
-  const downloadData = (await response.json()) as DownloadData[];
-  downloadDataRef.value = downloadData;
+  const downloadData = (await response.json()) as Record<
+    GuestRepoKey,
+    DownloadResult
+  >;
+  downloadResultRef.value = { loading: false, result: downloadData };
 });
 
 export function useDownloadData() {
-  return downloadDataRef;
+  return downloadResultRef;
 }

@@ -2,11 +2,33 @@
   <header class="header">VOICEVOX Preview Pages</header>
   <main class="main">
     <p>プレビューするBranchまたはPull Requestを選択してください。</p>
+    <section class="selector">
+      <ElButtonGroup>
+        <ElButton
+          v-for="(guestRepo, repoKey) in guestRepos"
+          :key="repoKey"
+          :type="currentRepo === repoKey ? 'primary' : 'default'"
+          @click="switchRepo(repoKey)"
+        >
+          {{ guestRepo.label }}（<a
+            :href="`https://github.com/${guestRepo.repo}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="download-source-link"
+            >{{ guestRepo.repo }}</a
+          >
+          ）
+        </ElButton>
+      </ElButtonGroup>
+    </section>
     <section class="downloads">
-      <template v-if="downloads">
+      <template v-if="downloads.loading">
+        <ElLoading />
+      </template>
+      <template v-else>
         <ElCard
-          v-for="download in downloads"
-          :key="download.dirname"
+          v-for="download in downloads.result[currentRepo].data"
+          :key="download.path"
           class="download-card"
         >
           <template #header>
@@ -50,28 +72,54 @@
             </template>
           </template>
 
-          <a :href="joinUrl(`${download.dirname}/editor/index.html`)">
-            <ElButton type="success">エディタ</ElButton>
-          </a>
-          <a :href="joinUrl(`${download.dirname}/storybook/index.html`)">
-            <ElButton type="danger">Storybook</ElButton>
-          </a>
+          <ElButton
+            v-for="link in guestRepos[currentRepo].links"
+            :key="link.label"
+            :type="link.buttonType"
+            :href="joinUrl(`${download.path}/${link.path}`)"
+            tag="a"
+            target="_blank"
+            >{{ link.label }}</ElButton
+          >
         </ElCard>
-      </template>
-      <template v-else>
-        <ElLoading />
       </template>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ElButton, ElCard, ElLoading, ElTag } from "element-plus";
+import {
+  ElButton,
+  ElButtonGroup,
+  ElCard,
+  ElLoading,
+  ElTag,
+} from "element-plus";
+import { ref, onMounted, watch } from "vue";
+import { GuestRepoKey } from "../scripts/common.ts";
+import { guestRepos } from "../scripts/constants.ts";
 import { useDownloadData } from "./composables/useDownloadData.ts";
 import { useColorScheme } from "./composables/useColorScheme.ts";
 
 const downloads = useDownloadData();
 useColorScheme();
+
+const currentRepo = ref<GuestRepoKey>("editor");
+const switchRepo = (repo: GuestRepoKey) => {
+  currentRepo.value = repo;
+};
+onMounted(() => {
+  const search = new URLSearchParams(location.search);
+  const repo = search.get("repo") as GuestRepoKey | null;
+  if (repo && repo in guestRepos) {
+    currentRepo.value = repo;
+  }
+});
+watch(currentRepo, (newVal) => {
+  const search = new URLSearchParams(location.search);
+  search.set("repo", newVal);
+  history.replaceState(null, "", `${location.pathname}?${search.toString()}`);
+});
 
 const joinUrl = (path: string) =>
   `${import.meta.env.BASE_URL}/preview/${path}`.replace(/\/+/g, "/");
@@ -105,6 +153,15 @@ const joinUrl = (path: string) =>
 
 .download-source {
   padding-left: 0.5rem;
+}
+
+.download-source-link {
+  color: currentColor;
+}
+
+.selector {
+  margin-bottom: 1rem;
+  display: flex;
 }
 
 .downloads {
