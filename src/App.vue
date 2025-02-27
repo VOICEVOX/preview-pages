@@ -36,14 +36,14 @@
               <ElTag type="primary" disableTransitions>Branch</ElTag>
               <a
                 class="download-source"
-                :href="`https://github.com/VOICEVOX/voicevox/tree/${download.source.branch.name}`"
+                :href="`https://github.com/${guestRepos[currentRepo].repo}/tree/${download.source.branch.name}`"
                 @click.stop
               >
                 {{ download.source.branch.name }}
               </a>
               ：
               <a
-                :href="`https://github.com/VOICEVOX/voicevox/commit/${download.source.branch.commit.sha}`"
+                :href="`https://github.com/${guestRepos[currentRepo].repo}/commit/${download.source.branch.commit.sha}`"
                 @click.stop
               >
                 {{ download.source.branch.commit.sha.slice(0, 7) }}
