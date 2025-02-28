@@ -25,11 +25,13 @@ export const guestRepos = {
       {
         path: "editor/index.html",
         buttonType: "success",
+        emoji: ":pencil:",
         label: "エディタ",
       },
       {
         path: "storybook/index.html",
         buttonType: "danger",
+        emoji: ":book:",
         label: "Storybook",
       },
     ],
@@ -41,6 +43,7 @@ export const guestRepos = {
       {
         path: "index.html",
         buttonType: "success",
+        emoji: ":green_book:",
         label: "ドキュメント",
       },
     ],
@@ -54,6 +57,7 @@ export const guestRepos = {
     links: {
       path: string;
       buttonType: "success" | "danger";
+      emoji: string;
       label: string;
     }[];
   }
