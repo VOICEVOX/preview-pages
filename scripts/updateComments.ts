@@ -42,8 +42,8 @@ for (const { repoKey, data } of Object.values(downloadResults)) {
       ":rocket: プレビュー用ページを作成しました :rocket:",
       "",
       ...guestRepos[repoKey].links.map(
-        ({ path, emoji, label }) =>
-          `- <a href="${pagesUrl}/preview/${path}" target="_blank">${emoji} ${label}</a>`,
+        ({ path: linkPath, emoji, label }) =>
+          `- <a href="${pagesUrl}/preview/${path}/${linkPath}" target="_blank">${emoji} ${label}</a>`,
       ),
       "",
       `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
