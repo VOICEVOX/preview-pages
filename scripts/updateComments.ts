@@ -41,8 +41,10 @@ for (const { repoKey, data } of Object.values(downloadResults)) {
     const deployInfoMessage = [
       ":rocket: プレビュー用ページを作成しました :rocket:",
       "",
-      `- <a href="${pagesUrl}/preview/${path}/editor" target="_blank">:pencil: エディタ</a>`,
-      `- <a href="${pagesUrl}/preview/${path}/storybook" target="_blank">:book: Storybook</a>`,
+      ...guestRepos[repoKey].links.map(
+        ({ path: linkPath, emoji, label }) =>
+          `- <a href="${pagesUrl}/preview/${path}/${linkPath}" target="_blank">${emoji} ${label}</a>`,
+      ),
       "",
       `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
         source.pullRequest.head.repo.full_name
