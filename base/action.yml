@@ -1,0 +1,24 @@
+name: "Determine base"
+description: "プレビュー用ページのパスを決定する。"
+inputs:
+  name:
+    description: "preview-pages内での名前。"
+    required: true
+outputs:
+  base:
+    description: "ビルドしたプレビュー用ページのパス。"
+    value: ${{ steps.determine_base.outputs.base }}
+runs:
+  using: "composite"
+  steps:
+    - name: Determine base
+      uses: actions/github-script@v4
+      id: determine_base
+      with:
+        script: |
+          // ブランチの時はbranch-:name、
+          // PRの時はpr-:numberにビルドする。
+          const branch = context.payload.pull_request?.head.ref || context.ref.replace('refs/heads/', '');
+          const number = context.payload.pull_request?.number || '';
+          const targetPath = number ? `pr-${number}` : `branch-${branch}`;
+          core.setOutput('base', `/preview-pages/preview/${{ inputs.name }}/${targetPath}/`);
