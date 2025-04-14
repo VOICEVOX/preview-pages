@@ -7,15 +7,15 @@ inputs:
     description: "preview-pages内での名前。"
     required: true
 outputs:
-  base:
+  base_url:
     description: "ビルドしたプレビュー用ページのベースURL。"
-    value: ${{ steps.determine_base.outputs.base }}
+    value: ${{ steps.determine_base_url.outputs.base_url }}
 runs:
   using: "composite"
   steps:
-    - name: Determine base
+    - name: Determine base URL
       uses: actions/github-script@v4
-      id: determine_base
+      id: determine_base_url
       with:
         script: |
           // ブランチの時は`/preview-pages/preview/{名前}/branch-{ブランチ名}`、
@@ -23,4 +23,4 @@ runs:
           const branch = context.payload.pull_request?.head.ref || context.ref.replace('refs/heads/', '');
           const number = context.payload.pull_request?.number || '';
           const targetPath = number ? `pr-${number}` : `branch-${branch}`;
-          core.setOutput('base', `/preview-pages/preview/${{ inputs.name }}/${targetPath}/`);
+          core.setOutput('base_url', `/preview-pages/preview/${{ inputs.name }}/${targetPath}/`);
