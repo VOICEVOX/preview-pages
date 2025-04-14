@@ -1,3 +1,5 @@
+# TODO: scripts下のパス決定を別ファイルに切り出し、それをここで呼び出すようにする。
+
 name: "Determine base"
 description: "プレビュー用ページのパスを決定する。"
 inputs:
