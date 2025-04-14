@@ -18,8 +18,8 @@ runs:
       id: determine_base
       with:
         script: |
-          // ブランチの時はbranch-:name、
-          // PRの時はpr-:numberにビルドする。
+          // ブランチの時は`branch-{ブランチ名}`、
+          // PRの時は`pr-{PR番号}`にビルドする。
           const branch = context.payload.pull_request?.head.ref || context.ref.replace('refs/heads/', '');
           const number = context.payload.pull_request?.number || '';
           const targetPath = number ? `pr-${number}` : `branch-${branch}`;
