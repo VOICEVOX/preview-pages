@@ -1,0 +1,26 @@
+# TODO: scripts下のベースURLの決定を別ファイルに切り出し、それをここで呼び出すようにする。
+
+name: "Determine base URL"
+description: "preview-pages用のビルドで使うベースURLを決定する。"
+inputs:
+  name:
+    description: "preview-pages内での名前。"
+    required: true
+outputs:
+  base_url:
+    description: "ビルドしたプレビュー用ページのベースURL。"
+    value: ${{ steps.determine_base_url.outputs.base_url }}
+runs:
+  using: "composite"
+  steps:
+    - name: Determine base URL
+      uses: actions/github-script@v4
+      id: determine_base_url
+      with:
+        script: |
+          // ブランチの時は`/preview-pages/preview/{名前}/branch-{ブランチ名}`、
+          // PRの時は`/preview-pages/preview/{名前}/pr-{PR番号}`にビルドする。
+          const branch = context.payload.pull_request?.head.ref || context.ref.replace('refs/heads/', '');
+          const number = context.payload.pull_request?.number || '';
+          const targetPath = number ? `pr-${number}` : `branch-${branch}`;
+          core.setOutput('base_url', `/preview-pages/preview/${{ inputs.name }}/${targetPath}/`);
