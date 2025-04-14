@@ -72,13 +72,11 @@ sequenceDiagram
 
     loop
         preview_pages->>editor_fork: Jobの終了を問い合わせる
-        editor_fork->>preview_pages:
     end
 
     note over editor_fork: ビルドが完了する
     deactivate editor_fork
     preview_pages->>editor_fork: Artifactをダウンロードする
-    editor_fork->>preview_pages:
 
     note over preview_pages: Pagesにデプロイする
     deactivate preview_pages
@@ -182,6 +180,8 @@ jobs:
           # pathも適宜変更すること。
           path: "./dist"
 ```
+
+</details>
 
 ## ライセンス
 
