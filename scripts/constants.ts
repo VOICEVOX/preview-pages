@@ -36,6 +36,18 @@ export const guestRepos = {
       },
     ],
   },
+  blog: {
+    repo: "VOICEVOX/voicevox_blog",
+    label: "ホームページ",
+    links: [
+      {
+        path: "index.html",
+        buttonType: "success",
+        emoji: ":house:",
+        label: "ホームページ",
+      },
+    ],
+  },
   docs: {
     repo: "VOICEVOX/WIP_docs",
     label: "ドキュメント",
