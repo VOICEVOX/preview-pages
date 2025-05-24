@@ -125,7 +125,7 @@ async function updateComments(
 await main();
 
 function createDeployInfoMessage(
-  repoKey: string,
+  repoKey: TargetRepoKey,
   path: string,
   source: { type: "pullRequest"; pullRequest: PullRequest },
 ) {
