@@ -122,8 +122,6 @@ async function updateComments(
   }
 }
 
-await main();
-
 function createDeployInfoMessage(
   repoKey: TargetRepoKey,
   path: string,
@@ -141,3 +139,5 @@ function createDeployInfoMessage(
     commentMarker,
   ].join("\n");
 }
+
+await main();
