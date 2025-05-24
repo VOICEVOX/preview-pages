@@ -1,23 +1,25 @@
+// NOTE: このファイルはフロントエンドからもimportされるため、common.tsのimportは避ける
 import { Endpoints } from "@octokit/types";
 
 export type Branch =
   Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
 export type PullRequest =
   Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"][0];
+export type Source =
+  | {
+      type: "branch";
+      branch: Branch;
+    }
+  | {
+      type: "pullRequest";
+      pullRequest: PullRequest;
+    };
 export type DownloadData = {
-  source:
-    | {
-        type: "branch";
-        branch: Branch;
-      }
-    | {
-        type: "pullRequest";
-        pullRequest: PullRequest;
-      };
+  source: Source;
   path: string;
 };
 
-export const guestRepos = {
+export const targetRepos = {
   editor: {
     repo: "VOICEVOX/voicevox",
     label: "エディタ",
@@ -75,10 +77,10 @@ export const guestRepos = {
   }
 >;
 
-export type GuestRepoKey = keyof typeof guestRepos;
+export type TargetRepoKey = keyof typeof targetRepos;
 
 export type DownloadResult = {
-  repoKey: GuestRepoKey;
+  repoKey: TargetRepoKey;
   data: DownloadData[];
   numTargets: number;
 };
