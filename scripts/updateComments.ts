@@ -9,84 +9,135 @@ import {
   destinationDir,
   DownloadResult,
 } from "./common.ts";
-import { TargetRepoKey, targetRepos } from "./constants.ts";
+import {
+  PullRequest,
+  Source,
+  TargetRepoKey,
+  targetRepos,
+} from "./constants.ts";
 
-const appInfo = getAppInfo();
+async function main() {
+  const downloadResults = JSON.parse(
+    await fs.readFile(`${destinationDir}/downloads.json`, "utf-8"),
+  ) as Record<TargetRepoKey, DownloadResult>;
 
-const downloadResults = JSON.parse(
-  await fs.readFile(`${destinationDir}/downloads.json`, "utf-8"),
-) as Record<TargetRepoKey, DownloadResult>;
+  let allPullRequests = 0;
+  let newComments = 0;
+  let updatedComments = 0;
 
-let allPullRequests = 0;
-let newComments = 0;
-let updatedComments = 0;
-
-for (const { repoKey, data } of Object.values(downloadResults)) {
-  const [guestRepoOwner, guestRepoName] = targetRepos[repoKey].repo.split("/");
-  for (const { path, source } of data) {
-    if (source.type === "branch") {
-      continue;
+  for (const { repoKey, data } of Object.values(downloadResults)) {
+    const [targetRepoOwner, targetRepoName] =
+      targetRepos[repoKey].repo.split("/");
+    for (const source of data) {
+      const result = await updateComments(
+        repoKey,
+        targetRepoOwner,
+        targetRepoName,
+        source.path,
+        source.source,
+      );
+      switch (result) {
+        case "notAPullRequest":
+          continue;
+        case "new":
+          allPullRequests += 1;
+          newComments += 1;
+          break;
+        case "updated":
+          allPullRequests += 1;
+          updatedComments += 1;
+          break;
+        case "skipped":
+          allPullRequests += 1;
+          continue;
+      }
     }
-    allPullRequests += 1;
-    const log = rootLogger.getChild(`PR #${source.pullRequest.number}`);
-    log.info("Fetching comments...");
-    const comments = await octokit.paginate(
-      "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+  }
+
+  rootLogger.info`Done: ${newComments} new comments, ${updatedComments} updated comments / ${allPullRequests} PRs`;
+}
+
+async function updateComments(
+  repoKey: TargetRepoKey,
+  targetRepoOwner: string,
+  targetRepoName: string,
+  path: string,
+  source: Source,
+): Promise<"notAPullRequest" | "new" | "updated" | "skipped"> {
+  if (source.type === "branch") {
+    return "notAPullRequest";
+  }
+
+  const appInfo = getAppInfo();
+
+  const log = rootLogger.getChild(`PR #${source.pullRequest.number}`);
+
+  const deployInfoMessage = createDeployInfoMessage(repoKey, path, source);
+
+  log.info("Fetching comments...");
+  const comments = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+    {
+      owner: targetRepoOwner,
+      repo: targetRepoName,
+      issue_number: source.pullRequest.number,
+    },
+  );
+  const maybePreviousDeployInfo = comments.find(
+    (comment) =>
+      comment.user &&
+      appInfo.data &&
+      comment.user.login === `${appInfo.data.slug}[bot]` &&
+      commentMarkers.some((marker) => comment.body?.endsWith(marker)),
+  );
+
+  if (!maybePreviousDeployInfo) {
+    log.info("Adding deploy info...");
+    await octokit.request(
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
-        owner: guestRepoOwner,
-        repo: guestRepoName,
+        owner: targetRepoOwner,
+        repo: targetRepoName,
         issue_number: source.pullRequest.number,
+        body: deployInfoMessage,
       },
     );
-    const deployInfoMessage = [
-      ":rocket: プレビュー用ページを作成しました :rocket:",
-      "",
-      ...targetRepos[repoKey].links.map(
-        ({ path: linkPath, emoji, label }) =>
-          `- <a href="${pagesUrl}/preview/${path}/${linkPath}" target="_blank">${emoji} ${label}</a>`,
-      ),
-      "",
-      `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${
-        source.pullRequest.head.repo.full_name
-      }/commit/${source.pullRequest.head.sha})`,
-      commentMarker,
-    ].join("\n");
-    const maybePreviousDeployInfo = comments.find(
-      (comment) =>
-        comment.user &&
-        appInfo.data &&
-        comment.user.login === `${appInfo.data.slug}[bot]` &&
-        commentMarkers.some((marker) => comment.body?.endsWith(marker)),
+    return "new";
+  } else if (maybePreviousDeployInfo.body === deployInfoMessage) {
+    log.info("No update in deploy info, skipped.");
+    return "skipped";
+  } else {
+    log.info("Updating deploy info...");
+    await octokit.request(
+      "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+      {
+        owner: targetRepoOwner,
+        repo: targetRepoName,
+        comment_id: maybePreviousDeployInfo.id,
+        body: deployInfoMessage,
+      },
     );
-    if (!maybePreviousDeployInfo) {
-      log.info("Adding deploy info...");
-      await octokit.request(
-        "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
-        {
-          owner: guestRepoOwner,
-          repo: guestRepoName,
-          issue_number: source.pullRequest.number,
-          body: deployInfoMessage,
-        },
-      );
-      newComments += 1;
-    } else if (maybePreviousDeployInfo.body === deployInfoMessage) {
-      log.info("No update in deploy info, skipped.");
-    } else {
-      log.info("Updating deploy info...");
-      await octokit.request(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        {
-          owner: guestRepoOwner,
-          repo: guestRepoName,
-          comment_id: maybePreviousDeployInfo.id,
-          body: deployInfoMessage,
-        },
-      );
 
-      updatedComments += 1;
-    }
+    return "updated";
   }
 }
 
-rootLogger.info`Done: ${newComments} new comments, ${updatedComments} updated comments / ${allPullRequests} PRs`;
+await main();
+
+function createDeployInfoMessage(
+  repoKey: string,
+  path: string,
+  source: { type: "pullRequest"; pullRequest: PullRequest },
+) {
+  return [
+    ":rocket: プレビュー用ページを作成しました :rocket:",
+    "",
+    ...targetRepos[repoKey].links.map(
+      ({ path: linkPath, emoji, label }) =>
+        `- <a href="${pagesUrl}/preview/${path}/${linkPath}" target="_blank">${emoji} ${label}</a>`,
+    ),
+    "",
+    `更新時点でのコミットハッシュ：[\`${source.pullRequest.head.sha.slice(0, 7)}\`](https://github.com/${source.pullRequest.head.repo.full_name}/commit/${source.pullRequest.head.sha})`,
+    commentMarker,
+  ].join("\n");
+}

@@ -27,8 +27,6 @@ type Args = {
   skipDownload: boolean;
 };
 
-await main();
-
 async function main() {
   const args = processArgs();
   const { totalSuccessfulDownloads, successfulDownloads, totalTargets } =
@@ -236,7 +234,7 @@ async function getJobAndRunId(
   source: ArtifactSource,
   targetRepoOwner: string,
   targetRepoName: string,
-): Promise<{ jobId: number; runId: string } | undefined> {
+): Promise<{ jobId: number; runId: number } | undefined> {
   log.info("Checking...");
   const {
     data: { check_runs: checkRuns },
@@ -270,7 +268,7 @@ async function getJobAndRunId(
     );
     return;
   }
-  return { jobId: buildPageCheck.id, runId };
+  return { jobId: buildPageCheck.id, runId: Number.parseInt(runId) };
 }
 
 const jobWaitSemaphore = new Semaphore(5);
@@ -321,14 +319,14 @@ async function fetchArtifactUrl(
   log: Logger,
   targetRepoOwner: string,
   targetRepoName: string,
-  runId: string,
+  runId: number,
 ): Promise<string | undefined> {
   const buildPage = await octokit.request(
     "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
     {
       owner: targetRepoOwner,
       repo: targetRepoName,
-      run_id: Number.parseInt(runId),
+      run_id: runId,
     },
   );
   const artifact = buildPage.data.artifacts.find(
@@ -395,3 +393,5 @@ async function extractArtifact(
     }),
   );
 }
+
+await main();
