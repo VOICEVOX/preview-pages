@@ -200,8 +200,8 @@ async function collectArtifact(
 }
 
 async function fetchTargets(
-  guestRepoOwner: string,
-  guestRepoName: string,
+  targetRepoOwner: string,
+  targetRepoName: string,
 ): Promise<{
   filteredBranches: Branch[];
   pullRequests: PullRequest[];
@@ -209,8 +209,8 @@ async function fetchTargets(
   const branches = await octokit.paginate(
     "GET /repos/{owner}/{repo}/branches",
     {
-      owner: guestRepoOwner,
-      repo: guestRepoName,
+      owner: targetRepoOwner,
+      repo: targetRepoName,
     },
   );
   const filteredBranches = branches.filter(
@@ -220,8 +220,8 @@ async function fetchTargets(
   const pullRequests = await octokit.paginate(
     "GET /repos/{owner}/{repo}/pulls",
     {
-      owner: guestRepoOwner,
-      repo: guestRepoName,
+      owner: targetRepoOwner,
+      repo: targetRepoName,
       state: "open",
     },
   );
