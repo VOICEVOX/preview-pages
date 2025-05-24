@@ -9,20 +9,20 @@ import {
   destinationDir,
   DownloadResult,
 } from "./common.ts";
-import { GuestRepoKey, guestRepos } from "./constants.ts";
+import { TargetRepoKey, targetRepos } from "./constants.ts";
 
 const appInfo = getAppInfo();
 
 const downloadResults = JSON.parse(
   await fs.readFile(`${destinationDir}/downloads.json`, "utf-8"),
-) as Record<GuestRepoKey, DownloadResult>;
+) as Record<TargetRepoKey, DownloadResult>;
 
 let allPullRequests = 0;
 let newComments = 0;
 let updatedComments = 0;
 
 for (const { repoKey, data } of Object.values(downloadResults)) {
-  const [guestRepoOwner, guestRepoName] = guestRepos[repoKey].repo.split("/");
+  const [guestRepoOwner, guestRepoName] = targetRepos[repoKey].repo.split("/");
   for (const { path, source } of data) {
     if (source.type === "branch") {
       continue;
@@ -41,7 +41,7 @@ for (const { repoKey, data } of Object.values(downloadResults)) {
     const deployInfoMessage = [
       ":rocket: プレビュー用ページを作成しました :rocket:",
       "",
-      ...guestRepos[repoKey].links.map(
+      ...targetRepos[repoKey].links.map(
         ({ path: linkPath, emoji, label }) =>
           `- <a href="${pagesUrl}/preview/${path}/${linkPath}" target="_blank">${emoji} ${label}</a>`,
       ),

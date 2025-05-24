@@ -1,9 +1,9 @@
 import { ref } from "vue";
 import type { DownloadResult } from "../../scripts/common.ts";
-import type { GuestRepoKey } from "../../scripts/constants.ts";
+import type { TargetRepoKey } from "../../scripts/constants.ts";
 
 const downloadResultRef = ref<
-  | { loading: false; result: Record<GuestRepoKey, DownloadResult> }
+  | { loading: false; result: Record<TargetRepoKey, DownloadResult> }
   | { loading: true }
 >({ loading: true });
 
@@ -14,7 +14,7 @@ void fetch(
     throw new Error(`Failed to fetch downloads.json: ${response.statusText}`);
   }
   const downloadData = (await response.json()) as Record<
-    GuestRepoKey,
+    TargetRepoKey,
     DownloadResult
   >;
   downloadResultRef.value = { loading: false, result: downloadData };
