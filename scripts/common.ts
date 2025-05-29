@@ -5,12 +5,8 @@ import { App, Octokit } from "octokit";
 import { paginateRest } from "@octokit/plugin-paginate-rest";
 import { throttling } from "@octokit/plugin-throttling";
 import { Endpoints, OctokitResponse } from "@octokit/types";
-import { guestRepos } from "./constants.ts";
+import { targetRepos, Branch, PullRequest } from "./constants.ts";
 
-export type Branch =
-  Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
-export type PullRequest =
-  Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"][0];
 export type DownloadData = {
   source:
     | {
@@ -24,7 +20,7 @@ export type DownloadData = {
   path: string;
 };
 export type DownloadResult = {
-  repoKey: GuestRepoKey;
+  repoKey: TargetRepoKey;
   data: DownloadData[];
   numTargets: number;
 };
@@ -34,7 +30,7 @@ config({
 });
 
 // 設定
-export type GuestRepoKey = keyof typeof guestRepos;
+export type TargetRepoKey = keyof typeof targetRepos;
 // デプロイ情報を書き込むコメントの最初に付けるマーカー
 export const commentMarker = "<!-- voicevox preview-pages info -->";
 // 過去に使われていたマーカーも含めたマーカーの一覧

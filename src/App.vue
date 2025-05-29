@@ -5,17 +5,17 @@
     <section class="selector">
       <ElButtonGroup>
         <ElButton
-          v-for="(guestRepo, repoKey) in guestRepos"
+          v-for="(targetRepo, repoKey) in targetRepos"
           :key="repoKey"
           :type="currentRepo === repoKey ? 'primary' : 'default'"
           @click="switchRepo(repoKey)"
         >
-          {{ guestRepo.label }}（<a
-            :href="`https://github.com/${guestRepo.repo}`"
+          {{ targetRepo.label }}（<a
+            :href="`https://github.com/${targetRepo.repo}`"
             target="_blank"
             rel="noopener noreferrer"
             class="download-source-link"
-            >{{ guestRepo.repo }}</a
+            >{{ targetRepo.repo }}</a
           >
           ）
         </ElButton>
@@ -36,14 +36,14 @@
               <ElTag type="primary" disableTransitions>Branch</ElTag>
               <a
                 class="download-source"
-                :href="`https://github.com/${guestRepos[currentRepo].repo}/tree/${download.source.branch.name}`"
+                :href="`https://github.com/${targetRepos[currentRepo].repo}/tree/${download.source.branch.name}`"
                 @click.stop
               >
                 {{ download.source.branch.name }}
               </a>
               ：
               <a
-                :href="`https://github.com/${guestRepos[currentRepo].repo}/commit/${download.source.branch.commit.sha}`"
+                :href="`https://github.com/${targetRepos[currentRepo].repo}/commit/${download.source.branch.commit.sha}`"
                 @click.stop
               >
                 {{ download.source.branch.commit.sha.slice(0, 7) }}
@@ -73,7 +73,7 @@
           </template>
 
           <ElButton
-            v-for="link in guestRepos[currentRepo].links"
+            v-for="link in targetRepos[currentRepo].links"
             :key="link.label"
             :type="link.buttonType"
             :href="joinUrl(`${download.path}/${link.path}`)"
@@ -96,22 +96,22 @@ import {
   ElTag,
 } from "element-plus";
 import { ref, onMounted, watch } from "vue";
-import { GuestRepoKey } from "../scripts/common.ts";
-import { guestRepos } from "../scripts/constants.ts";
+import { TargetRepoKey } from "../scripts/common.ts";
+import { targetRepos } from "../scripts/constants.ts";
 import { useDownloadData } from "./composables/useDownloadData.ts";
 import { useColorScheme } from "./composables/useColorScheme.ts";
 
 const downloads = useDownloadData();
 useColorScheme();
 
-const currentRepo = ref<GuestRepoKey>("editor");
-const switchRepo = (repo: GuestRepoKey) => {
+const currentRepo = ref<TargetRepoKey>("editor");
+const switchRepo = (repo: TargetRepoKey) => {
   currentRepo.value = repo;
 };
 onMounted(() => {
   const search = new URLSearchParams(location.search);
-  const repo = search.get("repo") as GuestRepoKey | null;
-  if (repo && repo in guestRepos) {
+  const repo = search.get("repo") as TargetRepoKey | null;
+  if (repo && repo in targetRepos) {
     currentRepo.value = repo;
   }
 });
