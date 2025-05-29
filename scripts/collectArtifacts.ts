@@ -125,7 +125,7 @@ async function collectArtifacts(
       .map((source) => collectArtifact(args, repoKey, source)),
   );
   const successfulDownloads = downloadTargets.filter(
-    (downloadTarget) => downloadTarget !== undefined,
+    (downloadTarget) => downloadTarget != undefined,
   );
   return {
     repoKey,
