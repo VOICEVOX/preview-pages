@@ -54,6 +54,8 @@ await logtape.configure({
       formatter: logtape.getAnsiColorFormatter({
         level: "full",
         categoryColor: "cyan",
+        category: (categories: readonly string[]) =>
+          `[${categories.join("][")}]`,
       }),
     }),
   },
