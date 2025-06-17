@@ -141,11 +141,13 @@ async function collectArtifact(
 ): Promise<DownloadData | undefined> {
   const [targetRepoOwner, targetRepoName] =
     targetRepos[repoKey].repo.split("/");
-  const log = rootLogger.getChild(
-    source.type === "branch"
-      ? `Branch ${source.branch.name}`
-      : `PR #${source.pullRequest.number}`,
-  );
+  const log = rootLogger
+    .getChild(repoKey)
+    .getChild(
+      source.type === "branch"
+        ? `Branch ${source.branch.name}`
+        : `PR #${source.pullRequest.number}`,
+    );
 
   try {
     const jobAndRunId = await getJobAndRunId(
