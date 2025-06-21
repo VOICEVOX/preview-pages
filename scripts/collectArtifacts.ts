@@ -197,10 +197,10 @@ async function collectArtifact(
     if (args.skipDownload) {
       log.info`Download skipped: ${downloadUrl}`;
       return { source, path: outputPath, runId, cached: true };
-    } else {
-      await downloadArtifact(log, downloadUrl, zipDownloadPath);
-      await extractArtifact(log, zipDownloadPath, outputPath);
     }
+
+    await downloadArtifact(log, downloadUrl, zipDownloadPath);
+    await extractArtifact(log, zipDownloadPath, outputPath);
     log.info("Done.");
 
     const downloadData = {
