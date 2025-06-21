@@ -11,6 +11,7 @@ import {
   rootLogger,
 } from "./common.ts";
 import { DownloadData } from "./constants.ts";
+import { RequestError } from "octokit";
 
 const log = rootLogger.getChild("cache");
 type Release =
@@ -33,7 +34,7 @@ async function createReleaseIfNotExists() {
     log.info`Release ${cacheReleaseName} already exists.`;
     return release.data;
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Not Found")) {
+    if (error instanceof RequestError && error.status === 404) {
       log.info`Creating release ${cacheReleaseName}...`;
       const release = await octokit.rest.repos.createRelease({
         owner: cacheRepoOwner,

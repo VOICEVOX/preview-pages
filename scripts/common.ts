@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import * as logtape from "@logtape/logtape";
 import { config } from "dotenv";
-import { App, Octokit } from "octokit";
+import { App, Octokit, RequestError } from "octokit";
 import { paginateRest } from "@octokit/plugin-paginate-rest";
 import { throttling } from "@octokit/plugin-throttling";
 import { Endpoints, OctokitResponse } from "@octokit/types";
@@ -166,8 +166,7 @@ async function getCachedAssets(): Promise<Asset[]> {
       });
       cachedAssets = data.assets;
     } catch (error) {
-      // octokitはHttpErrorをexportしていないので、error.messageで判定する
-      if (error instanceof Error && error.message.includes("Not Found")) {
+      if (error instanceof RequestError && error.status === 404) {
         cacheLogger.info`Release ${cacheReleaseName} not found in ${cacheRepo}.`;
         cachedAssets = [];
         return cachedAssets;
