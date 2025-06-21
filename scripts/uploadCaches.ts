@@ -89,7 +89,7 @@ async function uploadArtifact(
     downloadData.runId,
   );
 
-  if (release.assets.some((asset) => asset.name === `${cacheFileName}.zip`)) {
+  if (release.assets.some((asset) => asset.name === cacheFileName)) {
     log.info`Asset ${cacheFileName} already exists, skipping upload.`;
     return;
   }
