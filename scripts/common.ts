@@ -5,20 +5,8 @@ import { App, Octokit } from "octokit";
 import { paginateRest } from "@octokit/plugin-paginate-rest";
 import { throttling } from "@octokit/plugin-throttling";
 import { Endpoints, OctokitResponse } from "@octokit/types";
-import { targetRepos, Branch, PullRequest } from "./constants.ts";
+import { targetRepos, DownloadData, Source } from "./constants.ts";
 
-export type DownloadData = {
-  source:
-    | {
-        type: "branch";
-        branch: Branch;
-      }
-    | {
-        type: "pullRequest";
-        pullRequest: PullRequest;
-      };
-  path: string;
-};
 export type DownloadResult = {
   repoKey: TargetRepoKey;
   data: DownloadData[];
@@ -39,7 +27,9 @@ export const commentMarkers = [
   "<!-- voiccevox preview-pages info -->",
 ];
 
-// ダウンロードしたファイルを展開するディレクトリ
+// ダウンロードしたzipを保存するディレクトリ
+export const cacheDownloadDir = `${import.meta.dirname}/cached`;
+// ダウンロードしたzipを展開するディレクトリ
 export const destinationDir = `${import.meta.dirname}/../public/preview`;
 // ビルドチェックのJobの名前
 export const pagesBuildCheckName = "build_preview_pages";
@@ -47,6 +37,11 @@ export const pagesBuildCheckName = "build_preview_pages";
 export const artifactName = "preview-pages";
 // PagesのURL
 export const pagesUrl = "https://voicevox.github.io/preview-pages";
+
+// キャッシュを保存するリポジトリ
+export const cacheRepo = "sevenc-nanashi/voicevox-preview-pages";
+// キャッシュのリリース名
+export const cacheReleaseName = "preview-pages-cache";
 
 await logtape.configure({
   sinks: {
@@ -131,3 +126,71 @@ export const getAppInfo = () => {
   }
   return appInfo;
 };
+
+export class ExhaustiveError extends Error {
+  constructor(value: never) {
+    super(`Not exhaustive. value: ${String(value)}`);
+  }
+}
+
+export function createSourceKey(source: Source): string {
+  switch (source.type) {
+    case "pullRequest":
+      return `pr-${source.pullRequest.number}`;
+    case "branch":
+      return `branch-${source.branch.name}`;
+    default:
+      throw new ExhaustiveError(source);
+  }
+}
+
+export function createCacheFileName(source: Source, runId: number): string {
+  return `${createSourceKey(source)}-${runId}-v1.zip`;
+}
+
+type Asset =
+  Endpoints["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"]["response"]["data"];
+
+let cachedAssets: Asset[] | undefined = undefined;
+
+const [cacheRepoOwner, cacheRepoName] = cacheRepo.split("/");
+const cacheLogger = rootLogger.getChild("cache");
+
+async function getCachedAssets(): Promise<Asset[]> {
+  if (cachedAssets == undefined) {
+    try {
+      const { data } = await octokit.rest.repos.getReleaseByTag({
+        owner: cacheRepoOwner,
+        repo: cacheRepoName,
+        tag: cacheReleaseName,
+      });
+      cachedAssets = data.assets;
+    } catch (error) {
+      // octokitはHttpErrorをexportしていないので、error.messageで判定する
+      if (error instanceof Error && error.message.includes("Not Found")) {
+        cacheLogger.info`Release ${cacheReleaseName} not found in ${cacheRepo}.`;
+        cachedAssets = [];
+        return cachedAssets;
+      }
+      throw error;
+    }
+  }
+  return cachedAssets;
+}
+
+export async function getCachedArtifact(
+  source: Source,
+  runId: number,
+): Promise<string | null> {
+  const assets = await getCachedAssets();
+  const cacheFileName = createCacheFileName(source, runId);
+
+  for (const asset of assets) {
+    if (asset.name === cacheFileName) {
+      cacheLogger.info`Found cached artifact for ${cacheFileName}`;
+      return asset.browser_download_url;
+    }
+  }
+
+  return null;
+}
