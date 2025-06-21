@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { parseArgs } from "node:util";
@@ -12,6 +14,9 @@ import {
   destinationDir,
   rootLogger,
   octokit,
+  cacheDownloadDir,
+  createSourceKey,
+  getCachedArtifact,
 } from "./common.ts";
 import {
   DownloadData,
@@ -173,29 +178,41 @@ async function collectArtifact(
       throw new Error(`Job #${jobId} did not complete successfully`);
     }
 
-    const downloadUrl = await fetchArtifactUrl(
-      log,
-      targetRepoOwner,
-      targetRepoName,
-      runId,
-    );
+    const outputPath = `${repoKey}/${createSourceKey(source)}`;
+    const cachedUrl = await getCachedArtifact(source, runId);
+    const downloadUrl =
+      cachedUrl ||
+      (await fetchArtifactUrl(log, targetRepoOwner, targetRepoName, runId));
+
     if (!downloadUrl) {
       throw new Error(`Failed to fetch artifact URL for run ${runId}`);
     }
 
-    const path = `${repoKey}/${
-      source.type === "branch"
-        ? `branch-${source.branch.name}`
-        : `pr-${source.pullRequest.number}`
-    }`;
+    const zipDownloadPath = `${cacheDownloadDir}/${outputPath}.zip`;
+    const zipInfoPath = `${cacheDownloadDir}/${outputPath}.json`;
+    await fs.mkdir(path.dirname(zipDownloadPath), {
+      recursive: true,
+    });
+
     if (args.skipDownload) {
       log.info`Download skipped: ${downloadUrl}`;
+      return { source, path: outputPath, runId, cached: true };
     } else {
-      await extractArtifact(log, downloadUrl, path);
+      await downloadArtifact(log, downloadUrl, zipDownloadPath);
+      await extractArtifact(log, zipDownloadPath, outputPath);
     }
     log.info("Done.");
 
-    return { source, path };
+    const downloadData = {
+      source,
+      path: outputPath,
+      runId,
+      cached: cachedUrl != null,
+    };
+
+    await fs.writeFile(zipInfoPath, JSON.stringify(downloadData, null, 2));
+
+    return downloadData;
   } catch (e) {
     log.error`Failed to process: ${e}`;
   }
@@ -370,10 +387,10 @@ async function fetchArtifactUrl(
   return innerDownloadUrl;
 }
 
-async function extractArtifact(
+async function downloadArtifact(
   log: Logger,
   downloadUrl: string,
-  path: string,
+  outputPath: string,
 ): Promise<void> {
   log.info`Downloading artifact from ${downloadUrl}`;
   const response = await fetch(downloadUrl);
@@ -385,14 +402,24 @@ async function extractArtifact(
   if (!response.body) {
     throw new Error("Response body is empty");
   }
-  const destination = `${destinationDir}/${path}`;
-  log.info`Extracting artifact to ${destination}`;
-  await fs.mkdir(destination, { recursive: true });
+  log.info`Downloading artifact to ${outputPath}`;
   await pipeline(
     Readable.fromWeb(response.body),
-    unzip.Extract({
-      path: destination,
-    }),
+    fsSync.createWriteStream(outputPath),
+  );
+}
+
+async function extractArtifact(
+  log: Logger,
+  downloadedPath: string,
+  outputPath: string,
+): Promise<void> {
+  const destinationPath = `${destinationDir}/${outputPath}`;
+  log.info`Extracting artifact to ${destinationPath}`;
+  await fs.mkdir(destinationPath, { recursive: true });
+  await pipeline(
+    fsSync.createReadStream(downloadedPath),
+    unzip.Extract({ path: destinationPath }),
   );
 }
 

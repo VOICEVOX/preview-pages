@@ -17,6 +17,8 @@ export type Source =
 export type DownloadData = {
   source: Source;
   path: string;
+  runId: number;
+  cached: boolean;
 };
 
 export const targetRepos = {

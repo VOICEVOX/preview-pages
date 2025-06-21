@@ -26,3 +26,6 @@ dist-ssr
 private-key.pem
 public/preview/*
 !public/preview/.gitkeep
+
+scripts/cached/*
+!scripts/cached/.gitkeep
