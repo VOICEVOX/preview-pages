@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { Endpoints } from "@octokit/types";
+import { RequestError } from "octokit";
 import {
   cacheDownloadDir,
   cacheReleaseName,
@@ -11,7 +12,6 @@ import {
   rootLogger,
 } from "./common.ts";
 import { DownloadData } from "./constants.ts";
-import { RequestError } from "octokit";
 
 const log = rootLogger.getChild("cache");
 type Release =
