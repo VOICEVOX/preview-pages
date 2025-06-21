@@ -153,7 +153,7 @@ type Asset =
 
 let cachedAssets: Asset[] | undefined = undefined;
 
-const [cacheRepoOwner, cacheRepoName] = cacheRepo.split("/");
+export const [cacheRepoOwner, cacheRepoName] = cacheRepo.split("/");
 const cacheLogger = rootLogger.getChild("cache");
 
 async function getCachedAssets(): Promise<Asset[]> {
