@@ -70,7 +70,7 @@ function processArgs(): Args {
   if (args.help) {
     console.log(`Usage: collectArtifacts.ts [--skipDownload]`);
     console.log(
-      `--skipDownload: ダウンロードURLのみを取得し、実際のダウンロードをスキップします。`,
+      `--skipDownload: ダウンロードURLの取得までを行い、それ以降のダウンロードや展開をスキップします。`,
     );
     process.exit(0);
   }
