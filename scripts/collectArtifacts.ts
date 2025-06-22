@@ -68,7 +68,10 @@ function processArgs(): Args {
   });
 
   if (args.help) {
-    console.log`Usage: collectArtifacts.ts [--skipDownload]`;
+    console.log(`Usage: collectArtifacts.ts [--skipDownload]`);
+    console.log(
+      `--skipDownload: ダウンロードURLのみを取得し、実際のダウンロードをスキップします。`,
+    );
     process.exit(0);
   }
   if (args.skipDownload) {
