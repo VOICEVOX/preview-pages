@@ -179,8 +179,7 @@ async function getCachedAssets(): Promise<Asset[]> {
   if (cachedAssets == undefined) {
     try {
       const { data } = await octokit.rest.repos.getReleaseByTag({
-        owner: cacheRepoOwner,
-        repo: cacheRepoName,
+        ...parseRepo(cacheRepo),
         tag: cacheReleaseName,
       });
       cachedAssets = data.assets;
