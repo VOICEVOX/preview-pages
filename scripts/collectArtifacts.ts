@@ -240,21 +240,21 @@ export class Artifact {
     return {
       source: this.source,
       cached: this.cached,
-      path: this.outputPathFragment,
+      pathFragment: this.outputPathFragment,
       runId: this.runId,
     };
   }
 
+  get outputPathFragment(): string {
+    return `${this.repoKey}/${createSourceKey(this.source)}`;
+  }
+
   get downloadPath(): string {
-    return `${cacheDownloadDir}/${this.repoKey}/${createSourceKey(this.source)}.zip`;
+    return `${cacheDownloadDir}/${this.outputPathFragment}.zip`;
   }
 
   get infoPath(): string {
-    return `${cacheDownloadDir}/${this.repoKey}/${createSourceKey(this.source)}.json`;
-  }
-
-  get outputPathFragment(): string {
-    return `${this.repoKey}/${createSourceKey(this.source)}`;
+    return `${cacheDownloadDir}/${this.outputPathFragment}.json`;
   }
 
   get outputDirPath(): string {
