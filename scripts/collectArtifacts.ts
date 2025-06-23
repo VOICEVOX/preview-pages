@@ -17,7 +17,7 @@ import {
   cacheDownloadDir,
   createSourceKey,
   getCachedArtifact,
-  parseRepo,
+  splitRepoName,
 } from "./common.ts";
 import {
   DownloadData,
@@ -173,7 +173,7 @@ async function fetchTargets(repoKey: TargetRepoKey): Promise<{
 }> {
   const branches = await octokit.paginate(
     "GET /repos/{owner}/{repo}/branches",
-    parseRepo(repoKey),
+    splitRepoName(repoKey),
   );
   const filteredBranches = branches.filter(
     (branch) => branch.name.startsWith("project-") || branch.name === "main",
@@ -182,7 +182,7 @@ async function fetchTargets(repoKey: TargetRepoKey): Promise<{
   const pullRequests = await octokit.paginate(
     "GET /repos/{owner}/{repo}/pulls",
     {
-      ...parseRepo(repoKey),
+      ...splitRepoName(repoKey),
       state: "open",
     },
   );
@@ -321,7 +321,7 @@ async function getJobAndRunId(
   } = await octokit.request(
     "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
     {
-      ...parseRepo(repoKey),
+      ...splitRepoName(repoKey),
       ref:
         source.type === "branch"
           ? source.branch.name
@@ -364,7 +364,7 @@ async function waitForJobCompletion(
       const { data: job } = await octokit.request(
         "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
         {
-          ...parseRepo(repoKey),
+          ...splitRepoName(repoKey),
           job_id: jobId,
         },
       );
@@ -400,7 +400,7 @@ async function fetchArtifactUrl(
   const buildPage = await octokit.request(
     "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
     {
-      ...parseRepo(repoKey),
+      ...splitRepoName(repoKey),
       run_id: runId,
     },
   );
@@ -425,7 +425,7 @@ async function fetchArtifactUrl(
       .request(
         "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
         {
-          ...parseRepo(repoKey),
+          ...splitRepoName(repoKey),
           artifact_id: artifact.id,
           archive_format: "zip",
         },

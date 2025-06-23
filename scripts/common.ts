@@ -152,7 +152,7 @@ type Asset =
   Endpoints["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"]["response"]["data"];
 
 /* リポジトリをOctokitのパラメーターに渡せる形で分解する。 */
-export function parseRepo(key: TargetRepoKey | `${string}/${string}`): {
+export function splitRepoName(key: TargetRepoKey | `${string}/${string}`): {
   owner: string;
   repo: string;
 } {
@@ -179,7 +179,7 @@ async function getCachedAssets(): Promise<Asset[]> {
   if (cachedAssets == undefined) {
     try {
       const { data } = await octokit.rest.repos.getReleaseByTag({
-        ...parseRepo(cacheRepo),
+        ...splitRepoName(cacheRepo),
         tag: cacheReleaseName,
       });
       cachedAssets = data.assets;

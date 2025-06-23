@@ -8,7 +8,7 @@ import {
   rootLogger,
   destinationDir,
   DownloadResult,
-  parseRepo,
+  splitRepoName,
 } from "./common.ts";
 import {
   PullRequest,
@@ -73,7 +73,7 @@ async function updateComments(
   const comments = await octokit.paginate(
     "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
     {
-      ...parseRepo(repoKey),
+      ...splitRepoName(repoKey),
       issue_number: source.pullRequest.number,
     },
   );
@@ -90,7 +90,7 @@ async function updateComments(
     await octokit.request(
       "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
-        ...parseRepo(repoKey),
+        ...splitRepoName(repoKey),
         issue_number: source.pullRequest.number,
         body: deployInfoMessage,
       },
@@ -104,7 +104,7 @@ async function updateComments(
     await octokit.request(
       "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
       {
-        ...parseRepo(repoKey),
+        ...splitRepoName(repoKey),
         comment_id: maybePreviousDeployInfo.id,
         body: deployInfoMessage,
       },
