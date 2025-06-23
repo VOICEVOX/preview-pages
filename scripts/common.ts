@@ -39,7 +39,7 @@ export const artifactName = "preview-pages";
 export const pagesUrl = "https://voicevox.github.io/preview-pages";
 
 // キャッシュを保存するリポジトリ
-export const cacheRepo = "sevenc-nanashi/voicevox-preview-pages";
+export const cacheRepo = "voicevox/preview-pages";
 // キャッシュのリリース名
 export const cacheReleaseName = "preview-pages-cache";
 
