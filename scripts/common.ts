@@ -151,9 +151,28 @@ export function createCacheFileName(source: Source, runId: number): string {
 type Asset =
   Endpoints["GET /repos/{owner}/{repo}/releases/assets/{asset_id}"]["response"]["data"];
 
+/* リポジトリをOctokitのパラメーターに渡せる形で分解する。 */
+export function parseRepo(key: TargetRepoKey | `${string}/${string}`): {
+  owner: string;
+  repo: string;
+} {
+  if (key in targetRepos) {
+    const targetRepo = targetRepos[key as TargetRepoKey];
+    if (!targetRepo) {
+      throw new Error(`Unknown repo key: ${key}`);
+    }
+    const [owner, repo] = targetRepo.repo.split("/");
+    return { owner, repo };
+  } else if (key.includes("/")) {
+    const [owner, repo] = key.split("/");
+    return { owner, repo };
+  } else {
+    throw new Error(`Invalid repo key: ${key}`);
+  }
+}
+
 let cachedAssets: Asset[] | undefined = undefined;
 
-export const [cacheRepoOwner, cacheRepoName] = cacheRepo.split("/");
 const cacheLogger = rootLogger.getChild("cache");
 
 async function getCachedAssets(): Promise<Asset[]> {

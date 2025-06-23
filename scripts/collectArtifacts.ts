@@ -17,6 +17,7 @@ import {
   cacheDownloadDir,
   createSourceKey,
   getCachedArtifact,
+  parseRepo,
 } from "./common.ts";
 import {
   DownloadData,
@@ -29,7 +30,7 @@ import {
 } from "./constants.ts";
 
 type Args = {
-  skipDownload: boolean;
+  fetchUrlOnly: boolean;
 };
 
 async function main() {
@@ -57,7 +58,7 @@ async function main() {
 function processArgs(): Args {
   const { values: args } = parseArgs({
     options: {
-      skipDownload: {
+      fetchUrlOnly: {
         type: "boolean",
       },
       help: {
@@ -68,18 +69,18 @@ function processArgs(): Args {
   });
 
   if (args.help) {
-    console.log(`Usage: collectArtifacts.ts [--skipDownload]`);
+    console.log(`Usage: collectArtifacts.ts [--fetchUrlOnly]`);
     console.log(
-      `--skipDownload: ダウンロードURLの取得までを行い、それ以降のダウンロードや展開をスキップします。`,
+      `--fetchUrlOnly: ダウンロードURLのみを取得し、実際のダウンロードは行わない。`,
     );
     process.exit(0);
   }
-  if (args.skipDownload) {
-    rootLogger.info("--skipDownload is set, skipping download.");
+  if (args.fetchUrlOnly) {
+    rootLogger.info("--fetchUrlOnly option is enabled.");
   }
 
   return {
-    skipDownload: args.skipDownload ?? false,
+    fetchUrlOnly: args.fetchUrlOnly ?? false,
   };
 }
 
@@ -105,12 +106,7 @@ async function collectArtifacts(
   args: Args,
   repoKey: TargetRepoKey,
 ): Promise<DownloadResult> {
-  const [targetRepoOwner, targetRepoName] =
-    targetRepos[repoKey].repo.split("/");
-  const { filteredBranches, pullRequests } = await fetchTargets(
-    targetRepoOwner,
-    targetRepoName,
-  );
+  const { filteredBranches, pullRequests } = await fetchTargets(repoKey);
 
   const downloadTargets = await Promise.all(
     [
@@ -158,7 +154,7 @@ async function collectArtifact(
   try {
     const artifact = await Artifact.fetch(log, source, repoKey);
 
-    if (args.skipDownload) {
+    if (args.fetchUrlOnly) {
       log.info`Download skipped: ${artifact.downloadUrl}`;
       return artifact.toDownloadData();
     }
@@ -172,19 +168,13 @@ async function collectArtifact(
   }
 }
 
-async function fetchTargets(
-  targetRepoOwner: string,
-  targetRepoName: string,
-): Promise<{
+async function fetchTargets(repoKey: TargetRepoKey): Promise<{
   filteredBranches: Branch[];
   pullRequests: PullRequest[];
 }> {
   const branches = await octokit.paginate(
     "GET /repos/{owner}/{repo}/branches",
-    {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
-    },
+    parseRepo(repoKey),
   );
   const filteredBranches = branches.filter(
     (branch) => branch.name.startsWith("project-") || branch.name === "main",
@@ -193,8 +183,7 @@ async function fetchTargets(
   const pullRequests = await octokit.paginate(
     "GET /repos/{owner}/{repo}/pulls",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...parseRepo(repoKey),
       state: "open",
     },
   );
@@ -217,26 +206,14 @@ export class Artifact {
     source: ArtifactSource,
     repoKey: TargetRepoKey,
   ): Promise<Artifact> {
-    const [targetRepoOwner, targetRepoName] =
-      targetRepos[repoKey].repo.split("/");
-    const jobAndRunId = await getJobAndRunId(
-      log,
-      source,
-      targetRepoOwner,
-      targetRepoName,
-    );
+    const jobAndRunId = await getJobAndRunId(log, source, repoKey);
     if (jobAndRunId == undefined) {
       throw new Error("No job found");
     }
 
     const { jobId, runId } = jobAndRunId;
     log.info`Job ID: ${jobId}, Run ID: ${runId}`;
-    const success = await waitForJobCompletion(
-      log,
-      jobId,
-      targetRepoOwner,
-      targetRepoName,
-    );
+    const success = await waitForJobCompletion(log, jobId, repoKey);
 
     if (!success) {
       throw new Error(`Job #${jobId} did not complete successfully`);
@@ -244,8 +221,7 @@ export class Artifact {
 
     const cachedUrl = await getCachedArtifact(source, runId);
     const downloadUrl =
-      cachedUrl ||
-      (await fetchArtifactUrl(log, targetRepoOwner, targetRepoName, runId));
+      cachedUrl || (await fetchArtifactUrl(log, repoKey, runId));
 
     if (!downloadUrl) {
       throw new Error(`Failed to fetch artifact URL for run ${runId}`);
@@ -338,8 +314,7 @@ export class Artifact {
 async function getJobAndRunId(
   log: Logger,
   source: ArtifactSource,
-  targetRepoOwner: string,
-  targetRepoName: string,
+  repoKey: TargetRepoKey,
 ): Promise<{ jobId: number; runId: number } | undefined> {
   log.info("Checking...");
   const {
@@ -347,8 +322,7 @@ async function getJobAndRunId(
   } = await octokit.request(
     "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...parseRepo(repoKey),
       ref:
         source.type === "branch"
           ? source.branch.name
@@ -381,8 +355,7 @@ const jobWaitSemaphore = new Semaphore(5);
 async function waitForJobCompletion(
   log: Logger,
   jobId: number,
-  targetRepoOwner: string,
-  targetRepoName: string,
+  repoKey: TargetRepoKey,
 ): Promise<boolean> {
   let success = false;
   let done = false;
@@ -392,8 +365,7 @@ async function waitForJobCompletion(
       const { data: job } = await octokit.request(
         "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
         {
-          owner: targetRepoOwner,
-          repo: targetRepoName,
+          ...parseRepo(repoKey),
           job_id: jobId,
         },
       );
@@ -423,15 +395,13 @@ async function waitForJobCompletion(
 
 async function fetchArtifactUrl(
   log: Logger,
-  targetRepoOwner: string,
-  targetRepoName: string,
+  repoKey: TargetRepoKey,
   runId: number,
 ): Promise<string | undefined> {
   const buildPage = await octokit.request(
     "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...parseRepo(repoKey),
       run_id: runId,
     },
   );
@@ -456,8 +426,7 @@ async function fetchArtifactUrl(
       .request(
         "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
         {
-          owner: targetRepoOwner,
-          repo: targetRepoName,
+          ...parseRepo(repoKey),
           artifact_id: artifact.id,
           archive_format: "zip",
         },
