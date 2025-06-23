@@ -156,11 +156,10 @@ async function collectArtifact(
 
     if (args.fetchUrlOnly) {
       log.info`Download skipped: ${artifact.downloadUrl}`;
-      return artifact.toDownloadData();
+    } else {
+      await artifact.downloadAndExtract();
+      log.info("Done.");
     }
-
-    await artifact.download();
-    log.info("Done.");
 
     return artifact.toDownloadData();
   } catch (e) {
@@ -262,7 +261,7 @@ export class Artifact {
     return `${destinationDir}/${this.outputPathFragment}`;
   }
 
-  async download(): Promise<void> {
+  async downloadAndExtract(): Promise<void> {
     await this.downloadArtifact();
     await this.writeDownloadInfo();
     await this.extractArtifact();
