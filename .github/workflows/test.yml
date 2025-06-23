@@ -29,6 +29,6 @@ jobs:
 
       - name: Test Dry Run
         run: |
-          pnpm run run:collect-artifacts --skipDownload
+          pnpm run run:collect-artifacts --fetchUrlOnly
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
