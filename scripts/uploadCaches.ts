@@ -5,10 +5,9 @@ import {
   cacheDownloadDir,
   cacheReleaseName,
   cacheRepo,
-  cacheRepoName,
-  cacheRepoOwner,
   createCacheFileName,
   octokit,
+  parseRepo,
   rootLogger,
 } from "./common.ts";
 import { DownloadData } from "./constants.ts";
@@ -27,8 +26,7 @@ async function createReleaseIfNotExists() {
 
   try {
     const release = await octokit.rest.repos.getReleaseByTag({
-      owner: cacheRepoOwner,
-      repo: cacheRepoName,
+      ...parseRepo(cacheRepo),
       tag: cacheReleaseName,
     });
     log.info`Release ${cacheReleaseName} already exists.`;
@@ -37,8 +35,7 @@ async function createReleaseIfNotExists() {
     if (error instanceof RequestError && error.status === 404) {
       log.info`Creating release ${cacheReleaseName}...`;
       const release = await octokit.rest.repos.createRelease({
-        owner: cacheRepoOwner,
-        repo: cacheRepoName,
+        ...parseRepo(cacheRepo),
         tag_name: cacheReleaseName,
         name: "Preview Pages Cache",
         body: "preview-pagesのキャッシュを保存するリリース。手動で編集しないでください。",
@@ -99,8 +96,7 @@ async function uploadArtifact(
 
   log.info`Uploading ${cacheFileName} from ${zipPath}...`;
   await octokit.rest.repos.uploadReleaseAsset({
-    owner: cacheRepoOwner,
-    repo: cacheRepoName,
+    ...parseRepo(cacheRepo),
     release_id: release.id,
     name: cacheFileName,
     // @ts-expect-error octokitの型定義が間違っている。 https://github.com/octokit/octokit.js/discussions/2087
