@@ -67,3 +67,12 @@ jobs:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Upload Caches
+        run: |
+          pnpm run run:upload-caches
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}

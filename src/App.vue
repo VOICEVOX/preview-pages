@@ -28,7 +28,7 @@
       <template v-else>
         <ElCard
           v-for="download in downloads.result[currentRepo].data"
-          :key="download.path"
+          :key="download.pathFragment"
           class="download-card"
         >
           <template #header>
@@ -76,7 +76,7 @@
             v-for="link in targetRepos[currentRepo].links"
             :key="link.label"
             :type="link.buttonType"
-            :href="joinUrl(`${download.path}/${link.path}`)"
+            :href="joinUrl(`${download.pathFragment}/${link.path}`)"
             tag="a"
             target="_blank"
             >{{ link.label }}</ElButton

@@ -8,6 +8,7 @@ import {
   rootLogger,
   destinationDir,
   DownloadResult,
+  splitRepoName,
 } from "./common.ts";
 import {
   PullRequest,
@@ -26,14 +27,10 @@ async function main() {
   let updatedComments = 0;
 
   for (const { repoKey, data } of Object.values(downloadResults)) {
-    const [targetRepoOwner, targetRepoName] =
-      targetRepos[repoKey].repo.split("/");
     for (const source of data) {
       const result = await updateComments(
         repoKey,
-        targetRepoOwner,
-        targetRepoName,
-        source.path,
+        source.pathFragment,
         source.source,
       );
       switch (result) {
@@ -59,8 +56,6 @@ async function main() {
 
 async function updateComments(
   repoKey: TargetRepoKey,
-  targetRepoOwner: string,
-  targetRepoName: string,
   path: string,
   source: Source,
 ): Promise<"notAPullRequest" | "new" | "updated" | "skipped"> {
@@ -78,8 +73,7 @@ async function updateComments(
   const comments = await octokit.paginate(
     "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...splitRepoName(repoKey),
       issue_number: source.pullRequest.number,
     },
   );
@@ -96,8 +90,7 @@ async function updateComments(
     await octokit.request(
       "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
-        owner: targetRepoOwner,
-        repo: targetRepoName,
+        ...splitRepoName(repoKey),
         issue_number: source.pullRequest.number,
         body: deployInfoMessage,
       },
@@ -111,8 +104,7 @@ async function updateComments(
     await octokit.request(
       "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
       {
-        owner: targetRepoOwner,
-        repo: targetRepoName,
+        ...splitRepoName(repoKey),
         comment_id: maybePreviousDeployInfo.id,
         body: deployInfoMessage,
       },

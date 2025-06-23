@@ -16,7 +16,9 @@ export type Source =
     };
 export type DownloadData = {
   source: Source;
-  path: string;
+  pathFragment: string;
+  runId: number;
+  cached: boolean;
 };
 
 export const targetRepos = {

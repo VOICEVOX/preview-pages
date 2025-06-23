@@ -1,4 +1,6 @@
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { parseArgs } from "node:util";
@@ -12,6 +14,10 @@ import {
   destinationDir,
   rootLogger,
   octokit,
+  cacheDownloadDir,
+  createSourceKey,
+  getCachedArtifact,
+  splitRepoName,
 } from "./common.ts";
 import {
   DownloadData,
@@ -24,7 +30,7 @@ import {
 } from "./constants.ts";
 
 type Args = {
-  skipDownload: boolean;
+  fetchUrlOnly: boolean;
 };
 
 async function main() {
@@ -52,7 +58,7 @@ async function main() {
 function processArgs(): Args {
   const { values: args } = parseArgs({
     options: {
-      skipDownload: {
+      fetchUrlOnly: {
         type: "boolean",
       },
       help: {
@@ -63,15 +69,18 @@ function processArgs(): Args {
   });
 
   if (args.help) {
-    console.log`Usage: collectArtifacts.ts [--skipDownload]`;
+    console.log(`Usage: collectArtifacts.ts [--fetchUrlOnly]`);
+    console.log(
+      `--fetchUrlOnly: ダウンロードURLのみを取得し、実際のダウンロードは行わない。`,
+    );
     process.exit(0);
   }
-  if (args.skipDownload) {
-    rootLogger.info("--skipDownload is set, skipping download.");
+  if (args.fetchUrlOnly) {
+    rootLogger.info("--fetchUrlOnly option is enabled.");
   }
 
   return {
-    skipDownload: args.skipDownload ?? false,
+    fetchUrlOnly: args.fetchUrlOnly ?? false,
   };
 }
 
@@ -97,12 +106,7 @@ async function collectArtifacts(
   args: Args,
   repoKey: TargetRepoKey,
 ): Promise<DownloadResult> {
-  const [targetRepoOwner, targetRepoName] =
-    targetRepos[repoKey].repo.split("/");
-  const { filteredBranches, pullRequests } = await fetchTargets(
-    targetRepoOwner,
-    targetRepoName,
-  );
+  const { filteredBranches, pullRequests } = await fetchTargets(repoKey);
 
   const downloadTargets = await Promise.all(
     [
@@ -139,8 +143,6 @@ async function collectArtifact(
   repoKey: TargetRepoKey,
   source: ArtifactSource,
 ): Promise<DownloadData | undefined> {
-  const [targetRepoOwner, targetRepoName] =
-    targetRepos[repoKey].repo.split("/");
   const log = rootLogger
     .getChild(repoKey)
     .getChild(
@@ -150,70 +152,28 @@ async function collectArtifact(
     );
 
   try {
-    const jobAndRunId = await getJobAndRunId(
-      log,
-      source,
-      targetRepoOwner,
-      targetRepoName,
-    );
-    if (jobAndRunId == undefined) {
-      throw new Error("No job found");
-    }
+    const artifact = await Artifact.fetch(log, source, repoKey);
 
-    const { jobId, runId } = jobAndRunId;
-    log.info`Job ID: ${jobId}, Run ID: ${runId}`;
-    const success = await waitForJobCompletion(
-      log,
-      jobId,
-      targetRepoOwner,
-      targetRepoName,
-    );
-
-    if (!success) {
-      throw new Error(`Job #${jobId} did not complete successfully`);
-    }
-
-    const downloadUrl = await fetchArtifactUrl(
-      log,
-      targetRepoOwner,
-      targetRepoName,
-      runId,
-    );
-    if (!downloadUrl) {
-      throw new Error(`Failed to fetch artifact URL for run ${runId}`);
-    }
-
-    const path = `${repoKey}/${
-      source.type === "branch"
-        ? `branch-${source.branch.name}`
-        : `pr-${source.pullRequest.number}`
-    }`;
-    if (args.skipDownload) {
-      log.info`Download skipped: ${downloadUrl}`;
+    if (args.fetchUrlOnly) {
+      log.info`Download skipped: ${artifact.downloadUrl}`;
     } else {
-      await extractArtifact(log, downloadUrl, path);
+      await artifact.downloadAndExtract();
+      log.info("Done.");
     }
-    log.info("Done.");
 
-    return { source, path };
+    return artifact.toDownloadData();
   } catch (e) {
     log.error`Failed to process: ${e}`;
   }
 }
 
-async function fetchTargets(
-  targetRepoOwner: string,
-  targetRepoName: string,
-): Promise<{
+async function fetchTargets(repoKey: TargetRepoKey): Promise<{
   filteredBranches: Branch[];
   pullRequests: PullRequest[];
 }> {
   const branches = await octokit.paginate(
     "GET /repos/{owner}/{repo}/branches",
-    {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
-    },
+    splitRepoName(repoKey),
   );
   const filteredBranches = branches.filter(
     (branch) => branch.name.startsWith("project-") || branch.name === "main",
@@ -222,8 +182,7 @@ async function fetchTargets(
   const pullRequests = await octokit.paginate(
     "GET /repos/{owner}/{repo}/pulls",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...splitRepoName(repoKey),
       state: "open",
     },
   );
@@ -231,11 +190,130 @@ async function fetchTargets(
   return { filteredBranches, pullRequests };
 }
 
+export class Artifact {
+  constructor(
+    private readonly log: Logger,
+    public readonly repoKey: TargetRepoKey,
+    public readonly source: ArtifactSource,
+    public readonly runId: number,
+    public readonly cached: boolean,
+    public readonly downloadUrl: string,
+  ) {}
+
+  static async fetch(
+    log: Logger,
+    source: ArtifactSource,
+    repoKey: TargetRepoKey,
+  ): Promise<Artifact> {
+    const jobAndRunId = await getJobAndRunId(log, source, repoKey);
+    if (jobAndRunId == undefined) {
+      throw new Error("No job found");
+    }
+
+    const { jobId, runId } = jobAndRunId;
+    log.info`Job ID: ${jobId}, Run ID: ${runId}`;
+    const success = await waitForJobCompletion(log, jobId, repoKey);
+
+    if (!success) {
+      throw new Error(`Job #${jobId} did not complete successfully`);
+    }
+
+    const cachedUrl = await getCachedArtifact(source, runId);
+    const downloadUrl =
+      cachedUrl || (await fetchArtifactUrl(log, repoKey, runId));
+
+    if (!downloadUrl) {
+      throw new Error(`Failed to fetch artifact URL for run ${runId}`);
+    }
+
+    return new Artifact(
+      log,
+      repoKey,
+      source,
+      runId,
+      cachedUrl != null,
+      downloadUrl,
+    );
+  }
+
+  toDownloadData(): DownloadData {
+    return {
+      source: this.source,
+      cached: this.cached,
+      pathFragment: this.outputPathFragment,
+      runId: this.runId,
+    };
+  }
+
+  get outputPathFragment(): string {
+    return `${this.repoKey}/${createSourceKey(this.source)}`;
+  }
+
+  get downloadPath(): string {
+    return `${cacheDownloadDir}/${this.outputPathFragment}.zip`;
+  }
+
+  get infoPath(): string {
+    return `${cacheDownloadDir}/${this.outputPathFragment}.json`;
+  }
+
+  get outputDirPath(): string {
+    return `${destinationDir}/${this.outputPathFragment}`;
+  }
+
+  async downloadAndExtract(): Promise<void> {
+    await this.downloadArtifact();
+    await this.writeDownloadInfo();
+    await this.extractArtifact();
+    this.log.info`Downloaded and extracted artifact to ${this.outputDirPath}`;
+  }
+
+  private async downloadArtifact(): Promise<void> {
+    this.log.info`Downloading artifact from ${this.downloadUrl}`;
+    const response = await fetch(this.downloadUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download artifact: ${response.status} ${response.statusText}`,
+      );
+    }
+    if (!response.body) {
+      throw new Error("Response body is empty");
+    }
+    this.log.info`Downloading artifact to ${this.downloadPath}`;
+    await fs.mkdir(path.dirname(this.downloadPath), {
+      recursive: true,
+    });
+    await pipeline(
+      Readable.fromWeb(response.body),
+      fsSync.createWriteStream(this.downloadPath),
+    );
+  }
+
+  private async writeDownloadInfo(): Promise<void> {
+    const downloadData: DownloadData = this.toDownloadData();
+
+    await fs.mkdir(path.dirname(this.infoPath), {
+      recursive: true,
+    });
+
+    this.log.info`Writing download info to ${this.infoPath}`;
+    await fs.writeFile(this.infoPath, JSON.stringify(downloadData, null, 2));
+  }
+
+  private async extractArtifact(): Promise<void> {
+    this.log.info`Extracting artifact to ${this.outputDirPath}`;
+    await fs.mkdir(this.outputDirPath, { recursive: true });
+    await pipeline(
+      fsSync.createReadStream(this.downloadPath),
+      unzip.Extract({ path: this.outputDirPath }),
+    );
+  }
+}
+
 async function getJobAndRunId(
   log: Logger,
   source: ArtifactSource,
-  targetRepoOwner: string,
-  targetRepoName: string,
+  repoKey: TargetRepoKey,
 ): Promise<{ jobId: number; runId: number } | undefined> {
   log.info("Checking...");
   const {
@@ -243,8 +321,7 @@ async function getJobAndRunId(
   } = await octokit.request(
     "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...splitRepoName(repoKey),
       ref:
         source.type === "branch"
           ? source.branch.name
@@ -277,8 +354,7 @@ const jobWaitSemaphore = new Semaphore(5);
 async function waitForJobCompletion(
   log: Logger,
   jobId: number,
-  targetRepoOwner: string,
-  targetRepoName: string,
+  repoKey: TargetRepoKey,
 ): Promise<boolean> {
   let success = false;
   let done = false;
@@ -288,8 +364,7 @@ async function waitForJobCompletion(
       const { data: job } = await octokit.request(
         "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
         {
-          owner: targetRepoOwner,
-          repo: targetRepoName,
+          ...splitRepoName(repoKey),
           job_id: jobId,
         },
       );
@@ -319,15 +394,13 @@ async function waitForJobCompletion(
 
 async function fetchArtifactUrl(
   log: Logger,
-  targetRepoOwner: string,
-  targetRepoName: string,
+  repoKey: TargetRepoKey,
   runId: number,
 ): Promise<string | undefined> {
   const buildPage = await octokit.request(
     "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
     {
-      owner: targetRepoOwner,
-      repo: targetRepoName,
+      ...splitRepoName(repoKey),
       run_id: runId,
     },
   );
@@ -352,8 +425,7 @@ async function fetchArtifactUrl(
       .request(
         "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
         {
-          owner: targetRepoOwner,
-          repo: targetRepoName,
+          ...splitRepoName(repoKey),
           artifact_id: artifact.id,
           archive_format: "zip",
         },
@@ -368,32 +440,6 @@ async function fetchArtifactUrl(
   }
 
   return innerDownloadUrl;
-}
-
-async function extractArtifact(
-  log: Logger,
-  downloadUrl: string,
-  path: string,
-): Promise<void> {
-  log.info`Downloading artifact from ${downloadUrl}`;
-  const response = await fetch(downloadUrl);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to download artifact: ${response.status} ${response.statusText}`,
-    );
-  }
-  if (!response.body) {
-    throw new Error("Response body is empty");
-  }
-  const destination = `${destinationDir}/${path}`;
-  log.info`Extracting artifact to ${destination}`;
-  await fs.mkdir(destination, { recursive: true });
-  await pipeline(
-    Readable.fromWeb(response.body),
-    unzip.Extract({
-      path: destination,
-    }),
-  );
 }
 
 await main();
