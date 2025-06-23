@@ -28,7 +28,11 @@ async function main() {
 
   for (const { repoKey, data } of Object.values(downloadResults)) {
     for (const source of data) {
-      const result = await updateComments(repoKey, source.path, source.source);
+      const result = await updateComments(
+        repoKey,
+        source.pathFragment,
+        source.source,
+      );
       switch (result) {
         case "notAPullRequest":
           continue;
