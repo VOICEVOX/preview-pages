@@ -218,7 +218,7 @@ export class Artifact {
       throw new Error(`Job #${jobId} did not complete successfully`);
     }
 
-    const cachedUrl = await getCachedArtifact(source, runId);
+    const cachedUrl = await getCachedArtifact(repoKey, source, runId);
     const downloadUrl =
       cachedUrl || (await fetchArtifactUrl(log, repoKey, runId));
 
