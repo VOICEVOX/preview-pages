@@ -144,8 +144,12 @@ export function createSourceKey(source: Source): string {
   }
 }
 
-export function createCacheFileName(source: Source, runId: number): string {
-  return `${createSourceKey(source)}-${runId}-v1.zip`;
+export function createCacheFileName(
+  repoKey: TargetRepoKey,
+  source: Source,
+  runId: number,
+): string {
+  return `${repoKey}-${createSourceKey(source)}-${runId}-v1.zip`;
 }
 
 type Asset =
@@ -196,11 +200,12 @@ async function getCachedAssets(): Promise<Asset[]> {
 }
 
 export async function getCachedArtifact(
+  repoKey: TargetRepoKey,
   source: Source,
   runId: number,
 ): Promise<string | null> {
   const assets = await getCachedAssets();
-  const cacheFileName = createCacheFileName(source, runId);
+  const cacheFileName = createCacheFileName(repoKey, source, runId);
 
   for (const asset of assets) {
     if (asset.name === cacheFileName) {
