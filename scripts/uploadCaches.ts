@@ -61,8 +61,7 @@ async function uploadArtifacts(release: Release) {
       continue;
     }
     if (!(repo in targetRepos)) {
-      log.warn`Unknown repo: ${repo}, skipping...`;
-      continue;
+      throw new Error(`Unknown repo: ${repo}`);
     }
     const repo_ = repo as TargetRepoKey;
     for (const file of await fs.readdir(`${cacheDownloadDir}/${repo}`)) {
