@@ -111,7 +111,7 @@ if (process.env.APP_ID) {
 
   octokit = await app.getInstallationOctokit(installationId);
 } else if (process.env.GITHUB_TOKEN) {
-  rootLogger.info`Running with GitHub Token. (Read only)`;
+  rootLogger.info`Running with GitHub Token, cannot comment on PRs.`;
 
   octokit = new Octokit({
     auth: getEnv("GITHUB_TOKEN"),
