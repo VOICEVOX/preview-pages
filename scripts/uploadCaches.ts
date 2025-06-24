@@ -10,7 +10,7 @@ import {
   splitRepoName,
   rootLogger,
 } from "./common.ts";
-import { DownloadData } from "./constants.ts";
+import { DownloadData, TargetRepoKey, targetRepos } from "./constants.ts";
 
 const log = rootLogger.getChild("cache");
 type Release =
@@ -60,6 +60,11 @@ async function uploadArtifacts(release: Release) {
     ) {
       continue;
     }
+    if (!(repo in targetRepos)) {
+      log.warn`Unknown repo: ${repo}, skipping...`;
+      continue;
+    }
+    const repo_ = repo as TargetRepoKey;
     for (const file of await fs.readdir(`${cacheDownloadDir}/${repo}`)) {
       if (!file.endsWith(".json")) {
         continue;
@@ -70,12 +75,13 @@ async function uploadArtifacts(release: Release) {
       )}`;
       const jsonPath = `${cacheDownloadDir}/${repo}/${file}`;
 
-      await uploadArtifact(release, zipPath, jsonPath);
+      await uploadArtifact(repo_, release, zipPath, jsonPath);
     }
   }
 }
 
 async function uploadArtifact(
+  repoKey: TargetRepoKey,
   release: Release,
   zipPath: string,
   jsonPath: string,
@@ -85,6 +91,7 @@ async function uploadArtifact(
   ) as DownloadData;
 
   const cacheFileName = createCacheFileName(
+    repoKey,
     downloadData.source,
     downloadData.runId,
   );
