@@ -176,7 +176,10 @@ async function fetchTargets(repoKey: TargetRepoKey): Promise<{
     splitRepoName(repoKey),
   );
   const filteredBranches = branches.filter(
-    (branch) => branch.name.startsWith("project-") || branch.name === "main",
+    (branch) =>
+      branch.name.startsWith("project-") ||
+      branch.name === "main" ||
+      branch.name === "master",
   );
 
   const pullRequests = await octokit.paginate(
