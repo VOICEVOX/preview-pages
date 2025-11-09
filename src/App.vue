@@ -1,5 +1,14 @@
 <template>
-  <header class="header">VOICEVOX Preview Pages</header>
+  <header class="header">
+    <a
+      href="https://github.com/VOICEVOX/preview-pages"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="header-link"
+    >
+      VOICEVOX Preview Pages
+    </a>
+  </header>
   <main class="main">
     <p>プレビューするBranchまたはPull Requestを選択してください。</p>
     <section class="selector">
@@ -143,6 +152,15 @@ const joinUrl = (path: string) =>
 
   font-size: 1.5rem;
   font-weight: bold;
+}
+
+.header-link {
+  color: currentColor;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .main {
