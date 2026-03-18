@@ -18,6 +18,7 @@ import {
   createSourceKey,
   getCachedArtifact,
   splitRepoName,
+  isTargetBranch,
 } from "./common.ts";
 import {
   DownloadData,
@@ -175,11 +176,8 @@ async function fetchTargets(repoKey: TargetRepoKey): Promise<{
     "GET /repos/{owner}/{repo}/branches",
     splitRepoName(repoKey),
   );
-  const filteredBranches = branches.filter(
-    (branch) =>
-      branch.name.startsWith("project-") ||
-      branch.name === "main" ||
-      branch.name === "master",
+  const filteredBranches = branches.filter((branch) =>
+    isTargetBranch(branch.name),
   );
 
   const pullRequests = await octokit.paginate(
