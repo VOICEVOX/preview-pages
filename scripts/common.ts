@@ -225,4 +225,9 @@ export function isTargetBranch(branchName: string): boolean {
   );
 }
 
-export class UnreachableError extends Error {}
+export class UnreachableError extends Error {
+  constructor(message = "Unreachable code executed") {
+    super(message);
+    this.name = "UnreachableError";
+  }
+}
