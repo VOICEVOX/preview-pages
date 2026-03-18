@@ -1,3 +1,4 @@
+import { RequestError } from "octokit";
 import {
   cacheReleaseName,
   cacheRepo,
@@ -5,7 +6,7 @@ import {
   splitRepoName,
   rootLogger,
 } from "./common.ts";
-import { targetRepos, TargetRepoKey } from "./constants.ts";
+import { isTargetBranch, targetRepos, TargetRepoKey } from "./constants.ts";
 
 const log = rootLogger.getChild("cleanup");
 
@@ -38,10 +39,20 @@ function parseAssetName(
 async function main() {
   log.info`Fetching release assets from ${cacheReleaseName}...`;
 
-  const { data: release } = await octokit.rest.repos.getReleaseByTag({
-    ...splitRepoName(cacheRepo),
-    tag: cacheReleaseName,
-  });
+  let release;
+  try {
+    const response = await octokit.rest.repos.getReleaseByTag({
+      ...splitRepoName(cacheRepo),
+      tag: cacheReleaseName,
+    });
+    release = response.data;
+  } catch (error) {
+    if (error instanceof RequestError && error.status === 404) {
+      log.info`Release ${cacheReleaseName} not found. Nothing to clean.`;
+      return;
+    }
+    throw error;
+  }
 
   const assets = release.assets;
   log.info`Found ${assets.length} assets.`;
@@ -66,6 +77,7 @@ async function main() {
   }
 
   const toDelete: ParsedAsset[] = [];
+  const existingBranchesByRepo = new Map<TargetRepoKey, Set<string>>();
 
   for (const [, assetList] of grouped) {
     const { repoKey, sourceKey } = assetList[0];
@@ -96,7 +108,17 @@ async function main() {
         }
       }
     } else {
-      // Branch: keep only the latest runId
+      const branchName = sourceKey.replace(/^branch-/, "");
+      const existingBranches = await getExistingTargetBranches(
+        repoKey,
+        existingBranchesByRepo,
+      );
+      if (!existingBranches.has(branchName)) {
+        log.info`Branch ${branchName} (${repoKey}) no longer exists. Marking all ${assetList.length} asset(s) for deletion.`;
+        toDelete.push(...assetList);
+        continue;
+      }
+
       const sorted = [...assetList].sort((a, b) => b.runId - a.runId);
       if (sorted.length > 1) {
         log.info`Branch ${sourceKey} (${repoKey}) has ${sorted.length - 1} old asset(s). Marking for deletion.`;
@@ -119,6 +141,28 @@ async function main() {
     });
   }
   log.info`Done. Deleted ${toDelete.length} asset(s).`;
+}
+
+async function getExistingTargetBranches(
+  repoKey: TargetRepoKey,
+  existingBranchesByRepo: Map<TargetRepoKey, Set<string>>,
+): Promise<Set<string>> {
+  const cached = existingBranchesByRepo.get(repoKey);
+  if (cached != undefined) {
+    return cached;
+  }
+
+  const branches = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/branches",
+    splitRepoName(repoKey),
+  );
+  const existingBranches = new Set(
+    branches
+      .filter((branch) => isTargetBranch(branch.name))
+      .map((branch) => branch.name),
+  );
+  existingBranchesByRepo.set(repoKey, existingBranches);
+  return existingBranches;
 }
 
 await main();
