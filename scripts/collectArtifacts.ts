@@ -18,6 +18,7 @@ import {
   createSourceKey,
   getCachedArtifact,
   splitRepoName,
+  isTargetBranch,
 } from "./common.ts";
 import {
   DownloadData,
@@ -27,7 +28,6 @@ import {
   Branch,
   PullRequest,
   Source as ArtifactSource,
-  isTargetBranch,
 } from "./constants.ts";
 
 type Args = {

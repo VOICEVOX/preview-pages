@@ -216,3 +216,11 @@ export async function getCachedArtifact(
 
   return null;
 }
+
+export function isTargetBranch(branchName: string): boolean {
+  return (
+    branchName === "main" ||
+    branchName === "master" ||
+    branchName.startsWith("project-")
+  );
+}

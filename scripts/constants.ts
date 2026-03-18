@@ -86,7 +86,3 @@ export type DownloadResult = {
   data: DownloadData[];
   numTargets: number;
 };
-
-export function isTargetBranch(branchName: string): boolean {
-  return branchName === "main" || branchName.startsWith("project-");
-}

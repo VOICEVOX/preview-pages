@@ -5,8 +5,9 @@ import {
   octokit,
   splitRepoName,
   rootLogger,
+  isTargetBranch,
 } from "./common.ts";
-import { isTargetBranch, targetRepos, TargetRepoKey } from "./constants.ts";
+import { targetRepos, TargetRepoKey } from "./constants.ts";
 
 const log = rootLogger.getChild("cleanup");
 
