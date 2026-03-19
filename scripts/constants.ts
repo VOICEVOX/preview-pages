@@ -5,6 +5,8 @@ export type Branch =
   Endpoints["GET /repos/{owner}/{repo}/branches"]["response"]["data"][0];
 export type PullRequest =
   Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"][0];
+export type Release =
+  Endpoints["GET /repos/{owner}/{repo}/releases"]["response"]["data"][0];
 export type Source =
   | {
       type: "branch";

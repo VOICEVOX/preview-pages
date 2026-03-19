@@ -57,13 +57,13 @@ await logtape.configure({
   loggers: [
     {
       category: "app",
-      level: "info",
+      lowestLevel: "info",
       sinks: ["console"],
     },
 
     {
       category: ["logtape", "meta"],
-      level: "warning",
+      lowestLevel: "warning",
       sinks: ["console"],
     },
   ],
@@ -223,4 +223,11 @@ export function isTargetBranch(branchName: string): boolean {
     branchName === "master" ||
     branchName.startsWith("project-")
   );
+}
+
+export class UnreachableError extends Error {
+  constructor(message = "Unreachable code executed") {
+    super(message);
+    this.name = "UnreachableError";
+  }
 }

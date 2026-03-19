@@ -9,11 +9,4 @@ export default defineConfig({
       "@": "/src",
     },
   },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        api: "modern-compiler",
-      },
-    },
-  },
 });

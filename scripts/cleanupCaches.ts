@@ -6,8 +6,9 @@ import {
   splitRepoName,
   rootLogger,
   isTargetBranch,
+  UnreachableError,
 } from "./common.ts";
-import { targetRepos, TargetRepoKey } from "./constants.ts";
+import { targetRepos, TargetRepoKey, Release } from "./constants.ts";
 
 const log = rootLogger.getChild("cleanup");
 
@@ -40,7 +41,7 @@ function parseAssetName(
 async function main() {
   log.info`Fetching release assets from ${cacheReleaseName}...`;
 
-  let release;
+  let release: Release;
   try {
     const response = await octokit.rest.repos.getReleaseByTag({
       ...splitRepoName(cacheRepo),
@@ -74,7 +75,11 @@ async function main() {
   for (const p of parsed) {
     const key = `${p.repoKey}-${p.sourceKey}`;
     if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(p);
+    const groupedAssets = grouped.get(key);
+    if (!groupedAssets) {
+      throw new UnreachableError();
+    }
+    groupedAssets.push(p);
   }
 
   const toDelete: ParsedAsset[] = [];
@@ -85,7 +90,7 @@ async function main() {
 
     if (sourceKey.startsWith("pr-")) {
       const prNumber = parseInt(sourceKey.slice(3), 10);
-      let isClosed = false;
+      let isClosed: boolean;
       try {
         const { data: pr } = await octokit.rest.pulls.get({
           ...splitRepoName(repoKey),
