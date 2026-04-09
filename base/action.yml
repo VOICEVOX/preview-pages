@@ -14,7 +14,7 @@ runs:
   using: "composite"
   steps:
     - name: Determine base URL
-      uses: actions/github-script@v4
+      uses: actions/github-script@10b53a9ec6c222bb4ce97aa6bd2b5f739696b536 # v4.2.0
       id: determine_base_url
       with:
         script: |

@@ -183,7 +183,6 @@ jobs:
 ```
 
 </details>
-
 ## ライセンス
 
 [LICENSE](LICENSE) を参照してください。
