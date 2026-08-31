@@ -317,9 +317,7 @@ async function getJobAndRunId(
   repoKey: TargetRepoKey,
 ): Promise<{ jobId: number; runId: number } | undefined> {
   log.info("Checking...");
-  const {
-    data: { check_runs: checkRuns },
-  } = await octokit.request(
+  const checkRuns = await octokit.paginate(
     "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
     {
       ...splitRepoName(repoKey),
