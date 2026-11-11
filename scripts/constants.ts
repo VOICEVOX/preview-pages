@@ -81,6 +81,29 @@ export const targetRepos = {
   }
 >;
 
+export const releaseTargets = {
+  engine: {
+    repo: "VOICEVOX/voicevox_engine",
+    label: "エンジン",
+    branch: "master",
+  },
+} as const satisfies Record<
+  string,
+  { repo: `${string}/${string}`; label: string; branch: string }
+>;
+
+export type ReleaseTargetKey = keyof typeof releaseTargets;
+
+/** 配布対象のkeyかどうかを判定する。 */
+export function isReleaseTargetKey(key: string): key is ReleaseTargetKey {
+  return key in releaseTargets;
+}
+
+/** Web対象のkeyかどうかを判定する。 */
+export function isTargetRepoKey(key: string): key is TargetRepoKey {
+  return key in targetRepos;
+}
+
 export type TargetRepoKey = keyof typeof targetRepos;
 
 export type DownloadResult = {

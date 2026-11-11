@@ -4,13 +4,14 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { parseArgs } from "node:util";
-import { Semaphore } from "@core/asyncutil";
 import { Logger } from "@logtape/logtape";
-import { RequestError } from "octokit";
 import unzip from "unzip-stream";
 import {
-  pagesBuildCheckName,
-  artifactName,
+  fetchArtifactUrl,
+  getJobAndRunId,
+  waitForJobCompletion,
+} from "./artifactSource.ts";
+import {
   destinationDir,
   rootLogger,
   octokit,
@@ -20,26 +21,51 @@ import {
   splitRepoName,
   isTargetBranch,
 } from "./common.ts";
+import { collectRelease, selectReleaseSource } from "./collectReleases.ts";
 import {
   DownloadData,
   targetRepos,
+  releaseTargets,
   DownloadResult,
   TargetRepoKey,
+  ReleaseTargetKey,
+  isReleaseTargetKey,
+  isTargetRepoKey,
   Branch,
   PullRequest,
   Source as ArtifactSource,
 } from "./constants.ts";
+import { ReleaseData, ReleaseResults } from "./releaseSchema.ts";
 
 type Args = {
   fetchUrlOnly: boolean;
 };
 
+type ReleaseCollection = {
+  key: ReleaseTargetKey;
+  data: ReleaseData;
+  collected: boolean;
+};
+
+type Collection = {
+  download?: DownloadData;
+  release?: ReleaseCollection;
+};
+
+const unavailable: ReleaseData = { status: "unavailable" };
+
 async function main() {
   const args = processArgs();
-  const { totalSuccessfulDownloads, successfulDownloads, totalTargets } =
-    await collectAllArtifacts(args);
+  const {
+    totalSuccessfulDownloads,
+    successfulDownloads,
+    totalTargets,
+    releases,
+    successfulReleases,
+    totalReleaseTargets,
+  } = await collectAllArtifacts(args);
 
-  if (totalSuccessfulDownloads === 0) {
+  if (totalSuccessfulDownloads + successfulReleases === 0) {
     rootLogger.error("No artifacts were collected.");
     process.exit(1);
   }
@@ -47,13 +73,19 @@ async function main() {
     `${destinationDir}/downloads.json`,
     JSON.stringify(successfulDownloads, null, 2),
   );
+  if (!args.fetchUrlOnly) {
+    await fs.writeFile(
+      `${destinationDir}/releases.json`,
+      JSON.stringify(releases, null, 2),
+    );
+  }
   rootLogger.info`Done:`;
   for (const { repoKey, data, numTargets } of Object.values(
     successfulDownloads,
   )) {
     rootLogger.info`${repoKey}: ${data.length} successful downloads / ${numTargets} targets`;
   }
-  rootLogger.info`Total: ${totalSuccessfulDownloads} successful downloads / ${totalTargets} targets`;
+  rootLogger.info`Total: ${totalSuccessfulDownloads + successfulReleases} successful downloads / ${totalTargets + totalReleaseTargets} targets`;
 }
 
 function processArgs(): Args {
@@ -87,63 +119,132 @@ function processArgs(): Args {
 
 async function collectAllArtifacts(args: Args) {
   const successfulDownloads: Record<string, DownloadResult> = {};
-
+  const releases: ReleaseResults = Object.fromEntries(
+    Object.keys(releaseTargets).map((key) => [key, unavailable]),
+  );
+  const handledReleaseKeys = new Set<string>();
   let totalSuccessfulDownloads = 0;
   let totalTargets = 0;
+  let successfulReleases = 0;
 
   for (const [rawRepoKey, repo] of Object.entries(targetRepos)) {
-    const repoKey = rawRepoKey as TargetRepoKey;
+    if (!isTargetRepoKey(rawRepoKey)) {
+      throw new Error(`不明なWeb対象です: ${rawRepoKey}`);
+    }
+    const repoKey = rawRepoKey;
     rootLogger.info`Collecting artifacts for ${repo.repo}...`;
-    const downloads = await collectArtifacts(args, repoKey);
-
+    const { downloads, releaseCollections } = await collectArtifacts(
+      args,
+      repoKey,
+    );
     successfulDownloads[repoKey] = downloads;
     totalSuccessfulDownloads += downloads.data.length;
     totalTargets += downloads.numTargets;
+    for (const release of releaseCollections) {
+      handledReleaseKeys.add(release.key);
+      releases[release.key] = release.data;
+      successfulReleases += Number(release.collected);
+    }
   }
-  return { totalSuccessfulDownloads, successfulDownloads, totalTargets };
+
+  for (const [key, target] of Object.entries(releaseTargets)) {
+    if (handledReleaseKeys.has(key)) {
+      continue;
+    }
+    if (!isReleaseTargetKey(key)) {
+      throw new Error(`不明な配布対象です: ${key}`);
+    }
+    const releaseKey = key;
+    const log = rootLogger.getChild(key);
+    try {
+      const response = await octokit.rest.repos.getBranch({
+        ...splitRepoName(target.repo),
+        branch: target.branch,
+      });
+      const selected = await selectReleaseSource(
+        log,
+        releaseKey,
+        response.data.commit.sha,
+      );
+      const data = await collectRelease(
+        log,
+        releaseKey,
+        selected,
+        args.fetchUrlOnly,
+      );
+      releases[releaseKey] = data;
+      successfulReleases++;
+    } catch (error) {
+      log.error`Failed to process: ${error}`;
+    }
+  }
+
+  return {
+    totalSuccessfulDownloads,
+    successfulDownloads,
+    totalTargets,
+    releases,
+    successfulReleases,
+    totalReleaseTargets: Object.keys(releaseTargets).length,
+  };
 }
 
 async function collectArtifacts(
   args: Args,
   repoKey: TargetRepoKey,
-): Promise<DownloadResult> {
+): Promise<{
+  downloads: DownloadResult;
+  releaseCollections: ReleaseCollection[];
+}> {
   const { filteredBranches, pullRequests } = await fetchTargets(repoKey);
-
-  const downloadTargets = await Promise.all(
-    [
-      filteredBranches.map(
-        (branch) =>
-          ({
-            type: "branch",
-            branch,
-          }) as const,
-      ),
-      pullRequests.map(
-        (pullRequest) =>
-          ({
-            type: "pullRequest",
-            pullRequest,
-          }) as const,
-      ),
-    ]
-      .flat()
-      .map((source) => collectArtifact(args, repoKey, source)),
+  const sources: ArtifactSource[] = [];
+  for (const branch of filteredBranches) {
+    sources.push({ type: "branch", branch });
+  }
+  for (const pullRequest of pullRequests) {
+    sources.push({ type: "pullRequest", pullRequest });
+  }
+  const results = await Promise.all(
+    sources.map((source) => collectArtifact(args, repoKey, source)),
   );
-  const successfulDownloads = downloadTargets.filter(
-    (downloadTarget) => downloadTarget != undefined,
+  const data = results.flatMap((result) =>
+    result.download == undefined ? [] : [result.download],
+  );
+  const releaseCollections = results.flatMap((result) =>
+    result.release == undefined ? [] : [result.release],
   );
   return {
-    repoKey,
-    data: successfulDownloads,
-    numTargets: downloadTargets.length,
+    downloads: { repoKey, data, numTargets: results.length },
+    releaseCollections,
   };
+}
+
+function findReleaseTarget(
+  repoKey: TargetRepoKey,
+  source: ArtifactSource,
+): ReleaseTargetKey | undefined {
+  if (source.type !== "branch") {
+    return;
+  }
+  const repo: string = targetRepos[repoKey].repo;
+  const entry = Object.entries(releaseTargets).find(
+    ([, target]) =>
+      target.repo === repo && target.branch === source.branch.name,
+  );
+  if (entry == undefined) {
+    return;
+  }
+  if (!isReleaseTargetKey(entry[0])) {
+    throw new Error(`不明な配布対象です: ${entry[0]}`);
+  }
+  return entry[0];
 }
 
 async function collectArtifact(
   args: Args,
   repoKey: TargetRepoKey,
   source: ArtifactSource,
-): Promise<DownloadData | undefined> {
+): Promise<Collection> {
   const log = rootLogger
     .getChild(repoKey)
     .getChild(
@@ -151,20 +252,47 @@ async function collectArtifact(
         ? `Branch ${source.branch.name}`
         : `PR #${source.pullRequest.number}`,
     );
-
+  const releaseKey = findReleaseTarget(repoKey, source);
   try {
-    const artifact = await Artifact.fetch(log, source, repoKey);
-
+    const selected =
+      releaseKey == undefined || source.type !== "branch"
+        ? undefined
+        : await selectReleaseSource(log, releaseKey, source.branch.commit.sha);
+    const artifact =
+      selected == undefined
+        ? await Artifact.fetch(log, source, repoKey)
+        : await Artifact.fetchSelected(log, source, repoKey, selected.runId);
     if (args.fetchUrlOnly) {
-      log.info`Download skipped: ${artifact.downloadUrl}`;
+      log.info("Download skipped");
     } else {
       await artifact.downloadAndExtract();
       log.info("Done.");
     }
-
-    return artifact.toDownloadData();
-  } catch (e) {
-    log.error`Failed to process: ${e}`;
+    if (selected == undefined || releaseKey == undefined) {
+      return { download: artifact.toDownloadData() };
+    }
+    const releaseData = await collectRelease(
+      log,
+      releaseKey,
+      selected,
+      args.fetchUrlOnly,
+    );
+    return {
+      download: artifact.toDownloadData(),
+      release: {
+        key: releaseKey,
+        data: releaseData,
+        collected: true,
+      },
+    };
+  } catch (error) {
+    log.error`Failed to process: ${error}`;
+    if (releaseKey != undefined) {
+      return {
+        release: { key: releaseKey, data: unavailable, collected: false },
+      };
+    }
+    return {};
   }
 }
 
@@ -206,22 +334,37 @@ export class Artifact {
     source: ArtifactSource,
     repoKey: TargetRepoKey,
   ): Promise<Artifact> {
-    const jobAndRunId = await getJobAndRunId(log, source, repoKey);
+    const ref =
+      source.type === "branch"
+        ? source.branch.name
+        : source.pullRequest.head.sha;
+    const repo = targetRepos[repoKey].repo;
+    const jobAndRunId = await getJobAndRunId(log, repo, ref);
     if (jobAndRunId == undefined) {
       throw new Error("No job found");
     }
 
     const { jobId, runId } = jobAndRunId;
     log.info`Job ID: ${jobId}, Run ID: ${runId}`;
-    const success = await waitForJobCompletion(log, jobId, repoKey);
+    const success = await waitForJobCompletion(log, jobId, repo);
 
     if (!success) {
       throw new Error(`Job #${jobId} did not complete successfully`);
     }
 
+    return Artifact.fetchSelected(log, source, repoKey, runId);
+  }
+
+  /** 選択済みrunからWeb Artifactを取得する。 */
+  static async fetchSelected(
+    log: Logger,
+    source: ArtifactSource,
+    repoKey: TargetRepoKey,
+    runId: number,
+  ): Promise<Artifact> {
+    const repo = targetRepos[repoKey].repo;
     const cachedUrl = await getCachedArtifact(repoKey, source, runId);
-    const downloadUrl =
-      cachedUrl || (await fetchArtifactUrl(log, repoKey, runId));
+    const downloadUrl = cachedUrl || (await fetchArtifactUrl(log, repo, runId));
 
     if (!downloadUrl) {
       throw new Error(`Failed to fetch artifact URL for run ${runId}`);
@@ -270,7 +413,7 @@ export class Artifact {
   }
 
   private async downloadArtifact(): Promise<void> {
-    this.log.info`Downloading artifact from ${this.downloadUrl}`;
+    this.log.info("Downloading artifact");
     const response = await fetch(this.downloadUrl);
     if (!response.ok) {
       throw new Error(
@@ -309,136 +452,6 @@ export class Artifact {
       unzip.Extract({ path: this.outputDirPath }),
     );
   }
-}
-
-async function getJobAndRunId(
-  log: Logger,
-  source: ArtifactSource,
-  repoKey: TargetRepoKey,
-): Promise<{ jobId: number; runId: number } | undefined> {
-  log.info("Checking...");
-  const checkRuns = await octokit.paginate(
-    "GET /repos/{owner}/{repo}/commits/{ref}/check-runs",
-    {
-      ...splitRepoName(repoKey),
-      ref:
-        source.type === "branch"
-          ? source.branch.name
-          : source.pullRequest.head.sha,
-    },
-  );
-  const buildPageCheck = checkRuns.find(
-    (checkRun) => checkRun.name === pagesBuildCheckName,
-  );
-  if (!buildPageCheck) {
-    log.info("No build check found");
-    return;
-  }
-  if (!buildPageCheck.details_url) {
-    throw new Error(
-      `Build check "${pagesBuildCheckName}" does not have a details URL.`,
-    );
-  }
-  const runId = buildPageCheck.details_url.match(/(?<=\/runs\/)[0-9]+/)?.[0];
-  if (!runId) {
-    log.error(
-      `Failed to extract check run ID from details URL: ${buildPageCheck.details_url}`,
-    );
-    return;
-  }
-  return { jobId: buildPageCheck.id, runId: Number.parseInt(runId) };
-}
-
-const jobWaitSemaphore = new Semaphore(5);
-async function waitForJobCompletion(
-  log: Logger,
-  jobId: number,
-  repoKey: TargetRepoKey,
-): Promise<boolean> {
-  let success = false;
-  let done = false;
-  // タイムアウト：5分
-  for (let i = 0; i < 20; i++) {
-    done = await jobWaitSemaphore.lock(async () => {
-      const { data: job } = await octokit.request(
-        "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
-        {
-          ...splitRepoName(repoKey),
-          job_id: jobId,
-        },
-      );
-      if (job.status === "completed") {
-        success = job.conclusion === "success";
-        return true;
-      }
-      log.info`Waiting for job #${jobId} to complete...`;
-      await new Promise((resolve) => setTimeout(resolve, 15000));
-      return false;
-    });
-    if (done) {
-      break;
-    }
-  }
-  if (!done) {
-    log.error`Job #${jobId} did not complete within the timeout period.`;
-    return false;
-  }
-  if (!success) {
-    log.error`Job #${jobId} did not complete successfully.`;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-async function fetchArtifactUrl(
-  log: Logger,
-  repoKey: TargetRepoKey,
-  runId: number,
-): Promise<string | undefined> {
-  const buildPage = await octokit.request(
-    "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
-    {
-      ...splitRepoName(repoKey),
-      run_id: runId,
-    },
-  );
-  const artifact = buildPage.data.artifacts.find(
-    (artifact) => artifact.name === artifactName,
-  );
-  if (!artifact) {
-    throw new Error(`Artifact "${artifactName}" not found in run ${runId}`);
-  }
-
-  const downloadUrl = artifact.archive_download_url;
-  if (!downloadUrl) {
-    throw new Error(
-      `Artifact "${artifactName}" does not have a download URL in run ${runId}`,
-    );
-  }
-  log.info`Fetching artifact URL from ${downloadUrl}`;
-
-  let innerDownloadUrl: string;
-  try {
-    innerDownloadUrl = await octokit
-      .request(
-        "GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}",
-        {
-          ...splitRepoName(repoKey),
-          artifact_id: artifact.id,
-          archive_format: "zip",
-        },
-      )
-      .then((response) => response.url);
-  } catch (e) {
-    if (e instanceof RequestError && e.status === 410) {
-      log.error("Artifact is expired");
-      return;
-    }
-    throw e;
-  }
-
-  return innerDownloadUrl;
 }
 
 await main();
